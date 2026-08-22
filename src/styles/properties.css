@@ -1,0 +1,343 @@
+/* ============ properties panel ============ */
+
+.props-panel {
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid #d8d8d8;
+}
+
+.props-body {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.props-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 4px 6px;
+}
+
+.props-selector {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 2px 4px;
+  font-weight: 600;
+}
+
+.props-selector-name {
+  color: #1e1e1e;
+}
+
+.props-selector-id {
+  color: #888888;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.props-search {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+/* ---------- collapsible groups ---------- */
+
+.props-group {
+  border-bottom: 1px solid #e4e4e4;
+}
+
+.props-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  background: #f0f0f0;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.props-group-header:hover {
+  background: #e6e6e6;
+}
+
+.props-group-arrow {
+  width: 10px;
+  color: #666666;
+  font-size: 10px;
+}
+
+/* ---------- rows ---------- */
+
+.props-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.props-label {
+  flex: 0 0 110px;
+  width: 110px;
+  padding-top: 3px;
+  color: #333333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.props-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.props-control input[type='text'],
+.props-control input[type='number'],
+.props-control select,
+.props-control textarea,
+.props-search {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.props-control textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+.props-control input:focus,
+.props-control select:focus,
+.props-control textarea:focus,
+.props-search:focus {
+  outline: 1px solid #0d99ff;
+  outline-offset: 0;
+  border-color: #0d99ff;
+}
+
+.props-control input:disabled {
+  background: #f3f3f3;
+  color: #777777;
+}
+
+.props-checkbox {
+  margin-top: 3px;
+}
+
+/* color: swatch + hex side by side */
+.props-color {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.props-color-swatch {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: none;
+  cursor: pointer;
+}
+
+.props-color-hex {
+  flex: 1;
+  min-width: 0;
+}
+
+.props-effect-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.props-effect-picker input {
+  flex: 1;
+  min-width: 0;
+}
+
+.props-effect-picker button {
+  flex: 0 0 28px;
+  width: 28px;
+  padding: 0;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.props-effect-picker button:hover {
+  background: #e5f1fb;
+  border-color: #0078d7;
+}
+
+/* override notice */
+.props-override-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 4px 6px;
+  padding: 4px 6px;
+  background: #fff4d6;
+  border: 1px solid #e0c878;
+  border-radius: 2px;
+  color: #6b5300;
+}
+
+.props-override-notice button {
+  padding: 1px 8px;
+  border: 1px solid #b8a05a;
+  border-radius: 2px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.props-note {
+  padding: 6px;
+  color: #777777;
+}
+
+/* events rows */
+.props-event-btn {
+  min-width: 40px;
+  padding: 2px 8px;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.props-event-btn:hover {
+  background: #ececec;
+}
+
+.props-event-btn.has-code {
+  background: #0d99ff;
+  border-color: #0d99ff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* page script code blocks */
+.props-code-block {
+  padding: 4px 6px 8px;
+}
+
+.props-code-label {
+  padding: 2px 0 4px;
+  color: #333333;
+  user-select: none;
+}
+
+.props-code-block .cm-editor {
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+/* ---------- bottom tabs ---------- */
+
+.props-tabs {
+  display: flex;
+  border-top: 1px solid #d8d8d8;
+  background: #f0f0f0;
+}
+
+.props-tab {
+  flex: 1;
+  padding: 4px 0 5px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.props-tab:hover {
+  background: #e6e6e6;
+}
+
+.props-tab.active {
+  border-bottom-color: #0d99ff;
+  color: #0d99ff;
+  font-weight: 600;
+}
+
+/* ---------- modal ---------- */
+
+.props-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.props-modal {
+  width: 640px;
+  max-width: calc(100vw - 48px);
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.props-modal-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.props-modal .cm-editor {
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.props-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.props-modal-actions button {
+  padding: 4px 16px;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.props-modal-actions button:hover {
+  background: #ececec;
+}
+
+.props-modal-actions .props-btn-primary {
+  background: #0d99ff;
+  border-color: #0d99ff;
+  color: #ffffff;
+}
+
+.props-modal-actions .props-btn-primary:hover {
+  background: #0b85e0;
+}

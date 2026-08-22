@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-renderer/
+release/
+installer/
+test/smoke-model.cjs
+test/smoke.png
+test/smoke-interact.png
+test/*.png
+*.log

@@ -1,0 +1,66 @@
+/**
+ * Maps component props to CSS declarations. Used by the canvas renderer
+ * (React) and the HTML exporter so both render identically.
+ * Values are plain CSS strings; keys are kebab-case CSS property names.
+ *
+ * Handles the COMMON property system (see componentDefs.ts): layout extras,
+ * typography, background/border, effects. Hover CSS, custom CSS, custom
+ * attributes and domId are export-only and handled by the exporter.
+ */
+export function styleFromProps(props: Record<string, any>): Record<string, string> {
+  const css: Record<string, string> = {};
+  const num = (v: any) => (v === undefined || v === null || v === '' ? undefined : Number(v));
+  const str = (v: any) => (v === undefined || v === null || v === '' ? undefined : String(v));
+
+  // Typography
+  const fontSize = num(props.fontSize);
+  if (fontSize) css['font-size'] = `${fontSize}px`;
+  if (str(props.fontFamily)) css['font-family'] = String(props.fontFamily);
+  if (str(props.fontWeight)) css['font-weight'] = String(props.fontWeight);
+  if (str(props.textAlign)) css['text-align'] = String(props.textAlign);
+  if (str(props.color)) css['color'] = String(props.color);
+  if (str(props.lineHeight)) css['line-height'] = String(props.lineHeight);
+  if (str(props.letterSpacing)) css['letter-spacing'] = String(props.letterSpacing);
+
+  // Background
+  if (str(props.backgroundColor)) css['background-color'] = String(props.backgroundColor);
+
+  // Border
+  const bw = num(props.borderWidth);
+  if (bw) {
+    css['border-style'] = str(props.borderStyle) ?? 'solid';
+    css['border-width'] = `${bw}px`;
+    if (str(props.borderColor)) css['border-color'] = String(props.borderColor);
+  }
+  const br = num(props.borderRadius);
+  if (br) css['border-radius'] = `${br}px`;
+
+  // Layout extras
+  if (str(props.minWidth)) css['min-width'] = String(props.minWidth);
+  if (str(props.maxWidth)) css['max-width'] = String(props.maxWidth);
+  if (str(props.margin)) css['margin'] = String(props.margin);
+  if (str(props.padding)) css['padding'] = String(props.padding);
+  if (str(props.overflow) && props.overflow !== 'visible') css['overflow'] = String(props.overflow);
+  if (str(props.position) && props.position !== 'absolute') css['position'] = String(props.position);
+  const z = num(props.zIndex);
+  if (z !== undefined) css['z-index'] = String(z);
+
+  // Effects
+  const op = num(props.opacity);
+  if (op !== undefined && op < 100) css['opacity'] = String(op / 100);
+  if (str(props.boxShadow)) css['box-shadow'] = String(props.boxShadow);
+  if (str(props.transition)) css['transition'] = String(props.transition);
+  if (str(props.animation)) css['animation'] = String(props.animation);
+  if (str(props.transform)) css['transform'] = String(props.transform);
+
+  return css;
+}
+
+/** Convert kebab-case css record to React camelCase style object. */
+export function toReactStyle(css: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(css)) {
+    out[k.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = v;
+  }
+  return out;
+}

@@ -1,0 +1,15 @@
+appId: com.sitebuilder.app
+productName: WYSIWYG SiteBuilder
+asar: false
+directories:
+  output: installer
+files:
+  - electron/**/*
+  - dist-renderer/**/*
+  - package.json
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
