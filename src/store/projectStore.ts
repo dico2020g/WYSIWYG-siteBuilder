@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { ComponentItem, ComponentOverride, Page, Project } from '../model/types';
-import { createPage, createProject, uid } from '../model/factory';
+import type { ComponentItem, ComponentOverride, DatabaseState, DbConnection, DbSqlObject, DbTable, Page, Project, Breakpoint } from '../model/types';
+import { createDatabaseState, createPage, createProject, sortBreakpoints, uid } from '../model/factory';
 import { COMPONENT_MAP } from '../model/componentDefs';
+import { resolveComponent, resolveComponentHidden, snapshotOverride } from '../model/responsive';
 
 export type CanvasTool = 'pointer' | string; // 'pointer' or a component type being placed
 
@@ -12,6 +13,9 @@ export type CodeDialogState =
   | { kind: 'object-animation'; componentId: string }
   | { kind: 'object-effect'; componentId: string; tab: 'animation' | 'transition' | 'transform' }
   | { kind: 'page-html' };
+
+export type DatabasePage = 'table' | 'view' | 'matview' | 'function' | 'query';
+export type DbObjectKind = 'views' | 'matviews' | 'functions' | 'queries';
 
 export interface ContextMenuState {
   x: number;
@@ -89,6 +93,27 @@ interface ProjectState {
   toggleLocked: (id: string) => void;
   centerInPage: (id: string, axis: 'h' | 'v' | 'both', artboardWidth: number, pageHeight: number) => void;
 
+  // database workspace — shown as closable tabs next to the page design tabs
+  openDbPages: DatabasePage[]; // db tabs currently open in the tab strip
+  activeDbPage: DatabasePage | null; // null = a design page is showing
+  connectionsOpen: boolean; // standalone Data Connections modal
+  selectedConnectionId: string | null;
+  selectedTableId: string | null;
+  openDatabase: (page: DatabasePage) => void;
+  closeDatabase: (page?: DatabasePage) => void; // defaults to the active tab
+  setDatabasePage: (page: DatabasePage) => void;
+  openConnections: () => void;
+  closeConnections: () => void;
+  selectConnection: (id: string | null) => void;
+  selectDbTable: (id: string | null) => void;
+  saveConnection: (conn: DbConnection) => void;
+  deleteConnection: (id: string) => void;
+  saveTable: (table: DbTable) => void;
+  deleteTable: (id: string) => void;
+  saveDbObject: (kind: DbObjectKind, obj: DbSqlObject) => void;
+  deleteDbObject: (kind: DbObjectKind, id: string) => void;
+  updateApiConfig: (patch: Partial<DatabaseState['api']>) => void;
+
   // breakpoints
   addBreakpoint: (name: string, maxWidth: number) => void;
   removeBreakpoint: (id: string) => void;
@@ -131,6 +156,13 @@ function snap(v: number, size: number, enabled: boolean): number {
   return enabled ? Math.round(v / size) * size : Math.round(v);
 }
 
+function snapshotAtBreakpoint(c: ComponentItem, breakpoints: Breakpoint[], breakpointId: string): ComponentOverride {
+  return snapshotOverride(
+    resolveComponent(c, breakpoints, breakpointId),
+    resolveComponentHidden(c, breakpoints, breakpointId)
+  );
+}
+
 const PAGE_BOTTOM_PADDING = 50;
 
 /** Grow page.height so it covers `bottom` (+ padding). Never shrinks. */
@@ -159,13 +191,30 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     contextMenu: null,
     clipboard: null,
     styleClipboard: null,
+    openDbPages: [],
+    activeDbPage: null,
+    connectionsOpen: false,
+    selectedConnectionId: null,
+    selectedTableId: null,
 
     newProject: () => {
       const p = createProject();
       set({ project: p, currentPageId: p.pages[0].id, selectedId: null, activeBreakpointId: null, filePath: null, dirty: false });
     },
     loadProject: (project, filePath) =>
-      set({ project, currentPageId: project.pages[0]?.id ?? '', selectedId: null, activeBreakpointId: null, filePath, dirty: false }),
+      set({
+        // merge db defaults so projects saved before new db fields existed still load
+        project: {
+          ...project,
+          breakpoints: sortBreakpoints(project.breakpoints ?? []),
+          database: { ...createDatabaseState(), ...project.database },
+        },
+        currentPageId: project.pages[0]?.id ?? '',
+        selectedId: null,
+        activeBreakpointId: null,
+        filePath,
+        dirty: false,
+      }),
     markSaved: (filePath) => set({ filePath, dirty: false }),
     renameProject: (name) =>
       set((s) => ({ project: { ...s.project, name }, dirty: true })),
@@ -212,7 +261,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         pages.splice(idx + 1, 0, clone);
         return { project: { ...s.project, pages }, currentPageId: clone.id, selectedId: null, dirty: true };
       }),
-    selectPage: (pageId) => set({ currentPageId: pageId, selectedId: null }),
+    selectPage: (pageId) => set({ currentPageId: pageId, selectedId: null, activeDbPage: null }),
     updatePageProps: (pageId, patch) =>
       set((s) => ({
         project: { ...s.project, pages: s.project.pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)) },
@@ -262,7 +311,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             if (geo.width !== undefined) g.width = geo.width;
             if (geo.height !== undefined) g.height = geo.height;
             if (s.activeBreakpointId) {
-              const prev = c.overrides[s.activeBreakpointId] ?? {};
+              // First touch at this breakpoint: seed a full snapshot of the
+              // cascaded state so wider layers stop propagating to this element.
+              const prev =
+                c.overrides[s.activeBreakpointId] ??
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
               return { ...c, overrides: { ...c.overrides, [s.activeBreakpointId]: { ...prev, ...g } } };
             }
             return { ...c, ...g };
@@ -270,7 +323,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           const changed = components.find((c) => c.id === id);
           const page = { ...p, components };
           if (!changed) return page;
-          const eff = effectiveComponent(changed, s.activeBreakpointId);
+          const eff = resolveComponent(changed, s.project.breakpoints, s.activeBreakpointId);
           return fitPageHeight(page, eff.y + eff.height, s.gridSize, s.snapToGrid);
         })
       ),
@@ -282,7 +335,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           components: p.components.map((c) => {
             if (c.id !== id) return c;
             if (s.activeBreakpointId) {
-              const prev = c.overrides[s.activeBreakpointId] ?? {};
+              const prev =
+                c.overrides[s.activeBreakpointId] ??
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
               return {
                 ...c,
                 overrides: {
@@ -380,7 +435,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           components: p.components.map((c) => {
             if (c.id !== id) return c;
             if (s.activeBreakpointId) {
-              const prev = c.overrides[s.activeBreakpointId] ?? {};
+              const prev =
+                c.overrides[s.activeBreakpointId] ??
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
               return {
                 ...c,
                 overrides: { ...c.overrides, [s.activeBreakpointId]: { ...prev, props: style } },
@@ -454,7 +511,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             const cur = new Set(c.hiddenIn ?? []);
             if (hidden) cur.add(breakpointId);
             else cur.delete(breakpointId);
-            return { ...c, hiddenIn: [...cur] };
+            const prev = c.overrides[breakpointId] ?? snapshotAtBreakpoint(c, s.project.breakpoints, breakpointId);
+            return {
+              ...c,
+              hiddenIn: [...cur],
+              overrides: { ...c.overrides, [breakpointId]: { ...prev, hidden } },
+            };
           }),
         }))
       ),
@@ -490,7 +552,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const s = get();
       const c = currentPage(s).components.find((c) => c.id === id);
       if (!c) return;
-      const eff = effectiveComponent(c, s.activeBreakpointId);
+      const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId);
       const geo: { x?: number; y?: number } = {};
       if (axis === 'h' || axis === 'both') geo.x = Math.round((artboardWidth - eff.width) / 2);
       if (axis === 'v' || axis === 'both') geo.y = Math.round((pageHeight - eff.height) / 2);
@@ -501,22 +563,42 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       set((s) => ({
         project: {
           ...s.project,
-          breakpoints: [
+          breakpoints: sortBreakpoints([
             ...s.project.breakpoints,
             { id: uid('bp'), name, maxWidth, orientation: 'none', fontSize: null },
-          ],
+          ]),
         },
         dirty: true,
       })),
     removeBreakpoint: (id) =>
       set((s) => ({
-        project: { ...s.project, breakpoints: s.project.breakpoints.filter((b) => b.id !== id) },
+        project: {
+          ...s.project,
+          breakpoints: s.project.breakpoints.filter((b) => b.id !== id),
+          // drop this breakpoint's overrides/hidden flags on every component
+          pages: s.project.pages.map((p) => ({
+            ...p,
+            components: p.components.map((c) => {
+              if (!c.overrides[id] && !(c.hiddenIn ?? []).includes(id)) return c;
+              const overrides = { ...c.overrides };
+              delete overrides[id];
+              return { ...c, overrides, hiddenIn: (c.hiddenIn ?? []).filter((b) => b !== id) };
+            }),
+          })),
+        },
         activeBreakpointId: s.activeBreakpointId === id ? null : s.activeBreakpointId,
         dirty: true,
       })),
     removeAllBreakpoints: () =>
       set((s) => ({
-        project: { ...s.project, breakpoints: [] },
+        project: {
+          ...s.project,
+          breakpoints: [],
+          pages: s.project.pages.map((p) => ({
+            ...p,
+            components: p.components.map((c) => ({ ...c, overrides: {}, hiddenIn: [] })),
+          })),
+        },
         activeBreakpointId: null,
         dirty: true,
       })),
@@ -536,10 +618,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           return {
             project: {
               ...s.project,
-              breakpoints: s.project.breakpoints.map((b) =>
-                b.id === bp.id
-                  ? { ...b, maxWidth: bp.maxWidth, orientation: bp.orientation, fontSize: bp.fontSize }
-                  : b
+              breakpoints: sortBreakpoints(
+                s.project.breakpoints.map((b) =>
+                  b.id === bp.id
+                    ? { ...b, maxWidth: bp.maxWidth, orientation: bp.orientation, fontSize: bp.fontSize }
+                    : b
+                )
               ),
             },
             dirty: true,
@@ -553,7 +637,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           fontSize: bp.fontSize,
         };
         return {
-          project: { ...s.project, breakpoints: [...s.project.breakpoints, created] },
+          project: { ...s.project, breakpoints: sortBreakpoints([...s.project.breakpoints, created]) },
           dirty: true,
         };
       }),
@@ -575,33 +659,143 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             if (c.id !== componentId) return c;
             const overrides = { ...c.overrides };
             delete overrides[breakpointId];
-            return { ...c, overrides };
+            return { ...c, overrides, hiddenIn: (c.hiddenIn ?? []).filter((id) => id !== breakpointId) };
           }),
         }))
       ),
 
     setZoom: (zoom) => set({ zoom: Math.min(2, Math.max(0.25, zoom)) }),
     toggleSnap: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+
+    // ---- database workspace ----
+    openDatabase: (page) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        return {
+          openDbPages: s.openDbPages.includes(page) ? s.openDbPages : [...s.openDbPages, page],
+          activeDbPage: page,
+          selectedConnectionId: s.selectedConnectionId ?? db.connections[0]?.id ?? null,
+          selectedTableId: s.selectedTableId ?? db.tables[0]?.id ?? null,
+        };
+      }),
+    closeDatabase: (page) =>
+      set((s) => {
+        const target = page ?? s.activeDbPage;
+        if (!target || !s.openDbPages.includes(target)) return {};
+        const remaining = s.openDbPages.filter((p) => p !== target);
+        return {
+          openDbPages: remaining,
+          activeDbPage:
+            s.activeDbPage === target ? remaining[remaining.length - 1] ?? null : s.activeDbPage,
+        };
+      }),
+    setDatabasePage: (page) =>
+      set((s) => ({
+        openDbPages: s.openDbPages.includes(page) ? s.openDbPages : [...s.openDbPages, page],
+        activeDbPage: page,
+      })),
+    openConnections: () =>
+      set((s) => ({
+        connectionsOpen: true,
+        selectedConnectionId: s.selectedConnectionId ?? dbOf(s.project).connections[0]?.id ?? null,
+      })),
+    closeConnections: () => set({ connectionsOpen: false }),
+    selectConnection: (id) => set({ selectedConnectionId: id }),
+    selectDbTable: (id) => set({ selectedTableId: id }),
+    saveConnection: (conn) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        const exists = db.connections.some((c) => c.id === conn.id);
+        const connections = exists
+          ? db.connections.map((c) => (c.id === conn.id ? conn : c))
+          : [...db.connections, conn];
+        return {
+          project: withDb(s.project, { ...db, connections }),
+          selectedConnectionId: conn.id,
+          dirty: true,
+        };
+      }),
+    deleteConnection: (id) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        return {
+          project: withDb(s.project, { ...db, connections: db.connections.filter((c) => c.id !== id) }),
+          selectedConnectionId: s.selectedConnectionId === id ? null : s.selectedConnectionId,
+          dirty: true,
+        };
+      }),
+    saveTable: (table) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        const exists = db.tables.some((t) => t.id === table.id);
+        const tables = exists
+          ? db.tables.map((t) => (t.id === table.id ? table : t))
+          : [...db.tables, table];
+        return {
+          project: withDb(s.project, { ...db, tables }),
+          selectedTableId: table.id,
+          dirty: true,
+        };
+      }),
+    deleteTable: (id) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        return {
+          project: withDb(s.project, { ...db, tables: db.tables.filter((t) => t.id !== id) }),
+          selectedTableId: s.selectedTableId === id ? null : s.selectedTableId,
+          dirty: true,
+        };
+      }),
+    saveDbObject: (kind, obj) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        const list = db[kind];
+        const next = list.some((o) => o.id === obj.id)
+          ? list.map((o) => (o.id === obj.id ? obj : o))
+          : [...list, obj];
+        return { project: withDb(s.project, { ...db, [kind]: next }), dirty: true };
+      }),
+    deleteDbObject: (kind, id) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        return {
+          project: withDb(s.project, { ...db, [kind]: db[kind].filter((o) => o.id !== id) }),
+          dirty: true,
+        };
+      }),
+    updateApiConfig: (patch) =>
+      set((s) => {
+        const db = dbOf(s.project);
+        return { project: withDb(s.project, { ...db, api: { ...db.api, ...patch } }), dirty: true };
+      }),
   };
 });
 
 // ---- derived helpers ----
 
+/** Project.database is optional in saved .wbp files — fill in the default when absent. */
+const FALLBACK_DB = createDatabaseState();
+
+export function dbOf(project: Project): DatabaseState {
+  // must return a stable reference — components select dbOf(s.project) in zustand
+  return project.database ?? FALLBACK_DB;
+}
+
+function withDb(project: Project, database: DatabaseState): Project {
+  return { ...project, database };
+}
+
 export function useCurrentPage(): Page {
   return useProjectStore((s) => s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0]);
 }
 
-/** Effective geometry+props of a component under the active breakpoint. */
-export function effectiveComponent(c: ComponentItem, activeBreakpointId: string | null): ComponentItem {
-  if (!activeBreakpointId) return c;
-  const ov = c.overrides[activeBreakpointId];
-  if (!ov) return c;
-  return {
-    ...c,
-    x: ov.x ?? c.x,
-    y: ov.y ?? c.y,
-    width: ov.width ?? c.width,
-    height: ov.height ?? c.height,
-    props: { ...c.props, ...(ov.props ?? {}) },
-  };
+/** Effective geometry+props of a component under the active breakpoint,
+ *  with cascade: the narrowest breakpoint at/above the target that has an
+ *  override for this element governs it (see model/responsive.ts). */
+export function effectiveComponent(
+  c: ComponentItem,
+  breakpoints: Breakpoint[],
+  activeBreakpointId: string | null
+): ComponentItem {
+  return resolveComponent(c, breakpoints, activeBreakpointId);
 }

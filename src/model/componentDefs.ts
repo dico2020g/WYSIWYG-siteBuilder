@@ -208,6 +208,10 @@ export const COMPONENT_DEFS: ComponentDef[] = [
     props: { glyph: '★', fontSize: 32, textAlign: 'center' },
     fields: [content('glyph', 'Glyph (emoji/char)')] }),
   def('divider', 'Divider', { icon: '―', group: 'Basic', w: 400, h: 10, props: { lineThickness: 1 }, fields: [content('lineThickness', 'Thickness', 'number')] }),
+  def('rectangle', 'Rectangle', { icon: '▭', group: 'Basic', w: 200, h: 120, props: { backgroundColor: '#e9ecef', borderWidth: 1, borderColor: '#adb5bd' } }),
+  def('roundedRectangle', 'Rounded Rectangle', { icon: '▢', group: 'Basic', w: 200, h: 120, props: { backgroundColor: '#e9ecef', borderWidth: 1, borderColor: '#adb5bd', borderRadius: 12 } }),
+  def('ellipse', 'Ellipse', { icon: '◯', group: 'Basic', w: 160, h: 160, props: { backgroundColor: '#e9ecef', borderWidth: 1, borderColor: '#adb5bd', borderRadius: 9999 } }),
+  def('list', 'List', { icon: '☰', group: 'Basic', w: 240, h: 120, props: { items: 'Item 1\nItem 2\nItem 3', lineHeight: '1.8' }, fields: [content('items', 'Items (one per line)', 'textarea')] }),
   def('htmlEmbed', 'HTML', { icon: '</>', group: 'Advanced', w: 300, h: 200, props: { html: '<div>Custom HTML</div>' }, fields: [content('html', 'HTML Code', 'textarea')] }),
 
   /* ---- Forms ---- */
@@ -337,10 +341,41 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = Object.fromEntries(
   COMPONENT_DEFS.map((d) => [d.type, d])
 );
 
-export const TOOLBOX_GROUPS = [
-  'Layout', 'Basic', 'Forms', 'Navigation', 'Media', 'Advanced', 'Data',
-  'User', 'E-Commerce',
-];
+export const TOOLBOX_GROUPS = ['Standard', 'Data', 'Media', 'Layout', 'Mobile', 'Advanced'];
+
+/** Toolbox grouping (WebDev-style categories). Types not listed fall back to
+ *  their own group if it is a toolbox group, otherwise Advanced. */
+const GROUP_OF: Record<string, string> = {
+  // Standard — mirrors the reference toolbox order
+  text: 'Standard', image: 'Standard', button: 'Standard', link: 'Standard',
+  email: 'Standard', divider: 'Standard', rectangle: 'Standard',
+  roundedRectangle: 'Standard', ellipse: 'Standard', table: 'Standard',
+  list: 'Standard', form: 'Standard', iframe: 'Standard', htmlEmbed: 'Standard',
+  navbar: 'Standard', heading: 'Standard', paragraph: 'Standard',
+  icon: 'Standard', textInput: 'Standard', password: 'Standard',
+  number: 'Standard', tel: 'Standard', textarea: 'Standard',
+  checkbox: 'Standard', radio: 'Standard', select: 'Standard',
+  date: 'Standard', time: 'Standard', file: 'Standard', range: 'Standard',
+  submit: 'Standard', reset: 'Standard', hiddenField: 'Standard',
+  // Data
+  datagrid: 'Data', repeater: 'Data', treeview: 'Data', searchbox: 'Data',
+  login: 'Data', register: 'Data', logout: 'Data', profile: 'Data',
+  dbform: 'Data', dbtable: 'Data', searchresults: 'Data',
+  // Media
+  video: 'Media', audio: 'Media', youtube: 'Media', gallery: 'Media',
+  slideshow: 'Media', carousel: 'Media', lightbox: 'Media',
+  // Layout
+  section: 'Layout', container: 'Layout', row: 'Layout', column: 'Layout',
+  flex: 'Layout', grid: 'Layout', card: 'Layout', panel: 'Layout',
+  group: 'Layout', spacer: 'Layout',
+  // Mobile
+  hamburger: 'Mobile', sidebar: 'Mobile', tabs: 'Mobile',
+  breadcrumb: 'Mobile', pagination: 'Mobile',
+};
+
+export function toolboxGroup(def: ComponentDef): string {
+  return GROUP_OF[def.type] ?? (TOOLBOX_GROUPS.includes(def.group) ? def.group : 'Advanced');
+}
 
 export const EVENT_NAMES = [
   'onanimationend', 'onanimationiteration', 'onanimationstart', 'onchange',

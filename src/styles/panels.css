@@ -3,18 +3,26 @@
 .toolbox-panel { flex: 1; min-height: 0; }
 
 .toolbox-search {
+  position: relative;
   padding: 4px 6px;
   border-bottom: 1px solid #e0e0e0;
   background: #fafafa;
 }
 .toolbox-search input {
   width: 100%;
-  padding: 2px 6px;
+  padding: 2px 24px 2px 6px;
   border: 1px solid #c8c8c8;
   border-radius: 2px;
   background: #fff;
 }
 .toolbox-search input:focus { outline: 1px solid #7aa7d9; border-color: #7aa7d9; }
+.toolbox-search-icon {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px; color: #888;
+  pointer-events: none;
+}
 
 .toolbox-group-header {
   display: flex;
@@ -115,9 +123,13 @@
 }
 .tree-node:hover { background: #e8e8e8; }
 .tree-node.active { background: #d0e4ff; }
-.tree-root { font-weight: 600; cursor: default; }
-.tree-root:hover { background: transparent; }
+.tree-root { font-weight: 600; }
 .tree-page { padding-left: 24px; }
+.tree-folder { padding-left: 18px; }
+.tree-leaf2 { padding-left: 42px; }
+.tree-static { color: #777; cursor: default; }
+.tree-static:hover { background: transparent; }
+.tree-node .collapse-arrow { display: inline-block; width: 12px; font-size: 10px; color: #777; }
 
 /* status bar */
 .status-bar {
@@ -132,7 +144,14 @@
   font-size: 11px;
   color: #333;
 }
-.status-left { flex: none; }
+.status-left { flex: none; padding-right: 10px; border-right: 1px solid #d8d8d8; }
+.status-devices { flex: none; display: flex; gap: 2px; padding: 0 8px; }
+.status-device-icon { font-size: 12px; color: #555; }
+.status-breakpoint { flex: none; padding: 0 6px; }
+.status-bp-select {
+  font-size: 11px; padding: 1px 4px;
+  border: 1px solid #c8c8c8; border-radius: 2px; background: #fff;
+}
 .status-center { flex: 1; text-align: center; color: #555; }
 .status-right {
   flex: none;
@@ -146,7 +165,11 @@
   accent-color: #0d6efd;
   cursor: pointer;
 }
+.zoom-btn { cursor: pointer; color: #555; padding: 0 2px; font-size: 11px; }
+.zoom-btn:hover { color: #0078d4; }
 .zoom-label {
-  min-width: 36px;
+  min-width: 42px;
   text-align: right;
 }
+.status-grid { color: #555; cursor: pointer; padding: 0 4px; }
+.status-grid:hover { color: #0078d4; }

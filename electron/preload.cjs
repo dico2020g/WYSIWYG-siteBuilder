@@ -6,4 +6,12 @@ contextBridge.exposeInMainWorld('sitebuilder', {
   openProject: () => ipcRenderer.invoke('project:open'),
   exportSite: (files) => ipcRenderer.invoke('export:site', files),
   previewSite: (files, entryName) => ipcRenderer.invoke('preview:site', files, entryName),
+  dbTest: (cfg) => ipcRenderer.invoke('db:test', cfg),
+  dbListObjects: (cfg) => ipcRenderer.invoke('db:listObjects', cfg),
+  dbListDatabases: (cfg) => ipcRenderer.invoke('db:listDatabases', cfg),
+  dbListColumns: (cfg, table) => ipcRenderer.invoke('db:listColumns', cfg, table),
+  dbFetchRows: (cfg, table, limit) => ipcRenderer.invoke('db:fetchRows', cfg, table, limit),
+  dbDropTable: (cfg, table) => ipcRenderer.invoke('db:dropTable', cfg, table),
+  appConfirm: (message) => ipcRenderer.invoke('app:confirm', message),
+  appAlert: (message) => ipcRenderer.invoke('app:alert', message),
 });

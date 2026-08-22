@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore, useCurrentPage } from '../../store/projectStore';
 import { COMPONENT_MAP } from '../../model/componentDefs';
+import { appAlert } from '../../actions/dialogs';
+import { appPrompt } from '../../actions/promptDialog';
 
 const MENU_WIDTH = 230;
 const SUBMENU_WIDTH = 150;
@@ -84,11 +86,13 @@ export default function ContextMenu() {
 
   const doRename = run(() => {
     if (!id || !comp) return;
-    const input = prompt('New ID:', comp.id);
-    if (input === null) return;
-    if (!st().renameComponentId(id, input)) {
-      alert('Invalid ID. Must be unique on the page and match [A-Za-z][\\w-]*.');
-    }
+    void (async () => {
+      const input = await appPrompt('New ID:', comp.id);
+      if (input === null) return;
+      if (!st().renameComponentId(id, input)) {
+        await appAlert('Invalid ID. Must be unique on the page and match [A-Za-z][\\w-]*.');
+      }
+    })();
   });
 
   const doProperties = run(() => {

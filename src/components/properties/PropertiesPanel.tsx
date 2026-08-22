@@ -4,8 +4,9 @@ import { COMPONENT_MAP, COMMON_GROUPS, EVENT_NAMES } from '../../model/component
 import type { PropField } from '../../model/componentDefs';
 import type { Project } from '../../model/types';
 import CodeEditor from '../code/CodeEditor';
+import DataSourceTree from '../dialogs/DataSourceBrowser';
 
-type Tab = 'events' | 'props';
+type Tab = 'events' | 'props' | 'datasource';
 
 function pageOf(s: { project: Project; currentPageId: string }) {
   return s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0];
@@ -21,11 +22,12 @@ export default function PropertiesPanel() {
       <div className="panel-header">
         <span>Properties</span>
       </div>
-      {tab === 'props' ? (
-        <PropsBody key={`props-${currentPageId}-${selectedId ?? 'page'}`} />
-      ) : (
-        <EventsBody key={`events-${currentPageId}-${selectedId ?? 'page'}`} />
-      )}
+      {tab === 'props' && <PropsBody key={`props-${currentPageId}-${selectedId ?? 'page'}`} />}
+      {tab === 'events' && <EventsBody key={`events-${currentPageId}-${selectedId ?? 'page'}`} />}
+      {/* Data Source tree stays mounted (hidden) so expansion state survives tab switches */}
+      <div className="ds-tab-wrap" style={{ display: tab === 'datasource' ? 'flex' : 'none' }}>
+        <DataSourceTree />
+      </div>
       <div className="props-tabs">
         <button
           type="button"
@@ -40,6 +42,13 @@ export default function PropertiesPanel() {
           onClick={() => setTab('props')}
         >
           More Properties
+        </button>
+        <button
+          type="button"
+          className={`props-tab${tab === 'datasource' ? ' active' : ''}`}
+          onClick={() => setTab('datasource')}
+        >
+          Data Source
         </button>
       </div>
     </section>
@@ -172,6 +181,7 @@ function ColorInput({ value, onCommit }: { value: string; onCommit: (v: string) 
 function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const comp = useProjectStore((s) => pageOf(s).components.find((c) => c.id === id));
   const bpId = useProjectStore((s) => s.activeBreakpointId);
+  const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const bpName = useProjectStore((s) =>
     s.activeBreakpointId ? s.project.breakpoints.find((b) => b.id === s.activeBreakpointId)?.name : undefined
   );
@@ -181,7 +191,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const openCodeDialog = useProjectStore((s) => s.openCodeDialog);
 
   if (!comp) return null;
-  const eff = effectiveComponent(comp, bpId);
+  const eff = effectiveComponent(comp, breakpoints, bpId);
   const def = COMPONENT_MAP[comp.type];
 
   const hasOverride = !!(bpId && comp.overrides[bpId]);

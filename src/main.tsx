@@ -7,6 +7,7 @@ import './styles/panels.css';
 import './styles/canvas.css';
 import './styles/properties.css';
 import './styles/dialogs.css';
+import './styles/database.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

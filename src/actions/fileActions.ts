@@ -1,10 +1,11 @@
 import { useProjectStore } from '../store/projectStore';
 import { exportSite } from '../export/exportHtml';
+import { appAlert } from './dialogs';
 
 async function api() {
   const a = window.sitebuilder;
   if (!a) {
-    alert('File actions are only available in the desktop app.');
+    await appAlert('File actions are only available in the desktop app.');
     throw new Error('no bridge');
   }
   return a;
@@ -31,7 +32,7 @@ export async function openProject() {
     const project = JSON.parse(res.json);
     useProjectStore.getState().loadProject(project, res.filePath);
   } catch {
-    alert('Could not read project file.');
+    await appAlert('Could not read project file.');
   }
 }
 
@@ -40,7 +41,7 @@ export async function exportProject() {
   const files = exportSite(s.project);
   const bridge = await api();
   const dir = await bridge.exportSite(files);
-  if (dir) alert(`Site exported to:\n${dir}`);
+  if (dir) await appAlert(`Site exported to:\n${dir}`);
 }
 
 export async function previewProject() {

@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { COMPONENT_DEFS, TOOLBOX_GROUPS } from '../../model/componentDefs';
+import { COMPONENT_DEFS, TOOLBOX_GROUPS, toolboxGroup } from '../../model/componentDefs';
 import { useProjectStore } from '../../store/projectStore';
 import { openProject, saveProject, exportProject, previewProject } from '../../actions/fileActions';
+import { appConfirm } from '../../actions/dialogs';
+import { appPrompt } from '../../actions/promptDialog';
 
-type RibbonTab = 'File' | 'Home' | 'Insert' | 'Page' | 'View' | 'Arrange' | 'Tools' | 'Help';
+type RibbonTab = 'File' | 'Home' | 'Insert' | 'Page' | 'Database' | 'View' | 'Arrange' | 'Tools' | 'Help';
 
-const TABS: RibbonTab[] = ['File', 'Home', 'Insert', 'Page', 'View', 'Arrange', 'Tools', 'Help'];
-
-const noop = () => {};
+const TABS: RibbonTab[] = ['File', 'Home', 'Insert', 'Page', 'Database', 'View', 'Arrange', 'Tools', 'Help'];
 
 interface RibbonButtonProps {
   icon: string;
@@ -64,16 +64,21 @@ export default function Ribbon() {
   const cutComponent = useProjectStore((s) => s.cutComponent);
   const copyComponent = useProjectStore((s) => s.copyComponent);
   const pasteComponent = useProjectStore((s) => s.pasteComponent);
+  const openDatabase = useProjectStore((s) => s.openDatabase);
+  const openConnections = useProjectStore((s) => s.openConnections);
+  const breakpoints = useProjectStore((s) => s.project.breakpoints);
+  const activeBreakpointId = useProjectStore((s) => s.activeBreakpointId);
+  const setActiveBreakpoint = useProjectStore((s) => s.setActiveBreakpoint);
 
   const currentPage = pages.find((p) => p.id === currentPageId) ?? pages[0];
 
-  const renameCurrentPage = () => {
-    const name = prompt('New page name:', currentPage?.name ?? '');
+  const renameCurrentPage = async () => {
+    const name = await appPrompt('New page name:', currentPage?.name ?? '');
     if (name && name.trim()) renamePage(currentPageId, name.trim());
   };
 
-  const deleteCurrentPage = () => {
-    if (confirm(`Delete page "${currentPage?.name ?? ''}"?`)) deletePage(currentPageId);
+  const deleteCurrentPage = async () => {
+    if (await appConfirm(`Delete page "${currentPage?.name ?? ''}"?`)) deletePage(currentPageId);
   };
 
   return (
@@ -95,28 +100,66 @@ export default function Ribbon() {
             <RibbonButton icon="📄" label="New" onClick={newProject} />
             <RibbonButton icon="📂" label="Open" onClick={() => void openProject()} />
             <RibbonButton icon="💾" label="Save" onClick={() => void saveProject(false)} />
-            <RibbonButton icon="💾" label="Save As" onClick={() => void saveProject(true)} />
-            <RibbonButton icon="👁" label="Preview" onClick={() => void previewProject()} />
-            <RibbonButton icon="🌐" label="Publish" onClick={() => void exportProject()} />
+            <RibbonButton icon="💾" label="Save All" onClick={() => void saveProject(false)} />
+            <RibbonButton icon="❌" label="Close" onClick={newProject} />
           </RibbonGroup>
         )}
 
         {activeTab === 'Home' && (
           <>
+            <RibbonGroup caption="File">
+              <RibbonButton icon="📄" label="New" onClick={newProject} />
+              <RibbonButton icon="📂" label="Open" onClick={() => void openProject()} />
+              <RibbonButton icon="💾" label="Save" onClick={() => void saveProject(false)} />
+              <RibbonButton icon="💾" label="Save All" onClick={() => void saveProject(false)} />
+              <RibbonButton icon="❌" label="Close" onClick={newProject} />
+            </RibbonGroup>
             <RibbonGroup caption="Clipboard">
-              <RibbonButton icon="↶" label="Undo" disabled />
-              <RibbonButton icon="↷" label="Redo" disabled />
               <RibbonButton icon="✂" label="Cut" disabled={!selectedId} onClick={() => selectedId && cutComponent(selectedId)} />
               <RibbonButton icon="⧉" label="Copy" disabled={!selectedId} onClick={() => selectedId && copyComponent(selectedId)} />
               <RibbonButton icon="📋" label="Paste" disabled={!clipboard} onClick={() => pasteComponent(false)} />
             </RibbonGroup>
             <RibbonGroup caption="Edit">
-              <RibbonButton icon="⚙" label="Properties" onClick={noop} />
-              <RibbonButton icon="</>" label="HTML" onClick={noop} />
+              <RibbonButton icon="↶" label="Undo" disabled />
+              <RibbonButton icon="↷" label="Redo" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Tools">
+              <RibbonButton icon="➤" label="Select" active={tool === 'pointer'} onClick={() => setTool('pointer')} />
+              <RibbonButton icon="✥" label="Move" disabled />
+              <RibbonButton icon="⬚" label="Size" disabled />
+              <RibbonButton icon="☰" label="Align" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Arrange">
+              <RibbonButton icon="⏫" label="Bring to Front" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'front')} />
+              <RibbonButton icon="⏬" label="Send to Back" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'back')} />
+              <RibbonButton icon="⧉" label="Group" disabled />
             </RibbonGroup>
             <RibbonGroup caption="Publish">
-              <RibbonButton icon="👁" label="Preview" onClick={() => void previewProject()} />
+              <RibbonButton icon="🔍" label="Preview" onClick={() => void previewProject()} />
               <RibbonButton icon="🌐" label="Publish" onClick={() => void exportProject()} />
+            </RibbonGroup>
+            <RibbonGroup caption="Responsive">
+              <label className="ribbon-field">
+                <span className="ribbon-field-label">Responsive ▾</span>
+                <select
+                  className="ribbon-select"
+                  value={activeBreakpointId ?? ''}
+                  onChange={(e) => setActiveBreakpoint(e.target.value || null)}
+                >
+                  <option value="">Desktop</option>
+                  {breakpoints.map((b) => (
+                    <option key={b.id} value={b.id}>{b.maxWidth}px</option>
+                  ))}
+                </select>
+              </label>
+            </RibbonGroup>
+            <RibbonGroup caption="Grid">
+              <RibbonButton
+                icon={snapToGrid ? '☑' : '☐'}
+                label="Snap to Grid"
+                active={snapToGrid}
+                onClick={toggleSnap}
+              />
             </RibbonGroup>
           </>
         )}
@@ -127,7 +170,7 @@ export default function Ribbon() {
               <RibbonButton icon="➤" label="Select" active={tool === 'pointer'} onClick={() => setTool('pointer')} />
             </RibbonGroup>
             {TOOLBOX_GROUPS.map((group) => {
-              const defs = COMPONENT_DEFS.filter((d) => d.group === group);
+              const defs = COMPONENT_DEFS.filter((d) => toolboxGroup(d) === group);
               if (defs.length === 0) return null;
               return (
                 <RibbonGroup key={group} caption={group}>
@@ -157,6 +200,25 @@ export default function Ribbon() {
             <RibbonGroup caption="Breakpoints">
               <RibbonButton icon="➕" label="Add" onClick={() => openBreakpointEditor({ mode: 'add' })} />
               <RibbonButton icon="⚙" label="Manage" onClick={openManageBreakpoints} />
+            </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'Database' && (
+          <>
+            <RibbonGroup caption="Connection">
+              <RibbonButton icon="🔌" label="Connection" onClick={openConnections} />
+              <RibbonButton icon="📄+" label="New Query" onClick={() => openDatabase('query')} />
+            </RibbonGroup>
+            <RibbonGroup caption="Objects">
+              <RibbonButton icon="▦" label="Table" onClick={() => openDatabase('table')} />
+              <RibbonButton icon="👁" label="View" onClick={() => openDatabase('view')} />
+              <RibbonButton icon="▧" label="Materialized View" onClick={() => openDatabase('matview')} />
+              <RibbonButton icon="ƒ(x)" label="Function" onClick={() => openDatabase('function')} />
+            </RibbonGroup>
+            <RibbonGroup caption="Tools">
+              <RibbonButton icon="🔍" label="Query" onClick={() => openDatabase('query')} />
+              <RibbonButton icon="🧩" label="Model" onClick={() => openDatabase('table')} />
             </RibbonGroup>
           </>
         )}

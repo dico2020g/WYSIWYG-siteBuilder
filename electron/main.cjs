@@ -85,5 +85,29 @@ ipcMain.handle('preview:site', async (_e, files, entryName) => {
   return dir;
 });
 
+// ---- IPC: database connectivity ----
+const db = require('./db.cjs');
+ipcMain.handle('db:test', async (_e, cfg) => db.testConnection(cfg));
+ipcMain.handle('db:listObjects', async (_e, cfg) => db.listObjects(cfg));
+ipcMain.handle('db:listDatabases', async (_e, cfg) => db.listDatabases(cfg));
+ipcMain.handle('db:listColumns', async (_e, cfg, table) => db.listColumns(cfg, table));
+ipcMain.handle('db:fetchRows', async (_e, cfg, table, limit) => db.fetchRows(cfg, table, limit));
+ipcMain.handle('db:dropTable', async (_e, cfg, table) => db.dropTable(cfg, table));
+
+// ---- IPC: native message dialogs (window.confirm/alert hang the Electron renderer) ----
+ipcMain.handle('app:confirm', async (_e, message) => {
+  const res = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Cancel', 'OK'],
+    defaultId: 1,
+    cancelId: 0,
+    message: String(message ?? ''),
+  });
+  return res.response === 1;
+});
+ipcMain.handle('app:alert', async (_e, message) => {
+  await dialog.showMessageBox({ type: 'info', buttons: ['OK'], message: String(message ?? '') });
+});
+
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());

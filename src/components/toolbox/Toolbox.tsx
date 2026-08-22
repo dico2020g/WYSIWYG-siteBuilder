@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from 'react';
-import { COMPONENT_DEFS, TOOLBOX_GROUPS, type ComponentDef } from '../../model/componentDefs';
+import { COMPONENT_DEFS, TOOLBOX_GROUPS, toolboxGroup, type ComponentDef } from '../../model/componentDefs';
 import { useProjectStore } from '../../store/projectStore';
 
 export default function Toolbox() {
@@ -21,15 +21,7 @@ export default function Toolbox() {
 
   const iconFor = (def: ComponentDef) => {
     const icon = String(def.icon ?? '').trim();
-    if (
-      icon &&
-      !icon.includes('�') &&
-      !icon.includes('�') &&
-      !icon.includes('â') &&
-      !icon.includes('ð')
-    ) {
-      return icon;
-    }
+    if (icon) return icon;
     return def.label
       .split(/\s+/)
       .map((part) => part[0])
@@ -44,21 +36,22 @@ export default function Toolbox() {
       <div className="toolbox-search">
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="Search controls..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <span className="toolbox-search-icon">🔍</span>
       </div>
       <div className="panel-body">
         {TOOLBOX_GROUPS.map((group) => {
-          const defs = COMPONENT_DEFS.filter((d) => d.group === group && matches(d.label));
-          const showPointer = group === 'Layout' && matches('Pointer');
+          const defs = COMPONENT_DEFS.filter((d) => toolboxGroup(d) === group && matches(d.label));
+          const showPointer = group === 'Standard' && matches('Pointer');
           if (defs.length === 0 && !showPointer) return null;
           const isCollapsed = !!collapsed[group];
           return (
             <div className="toolbox-group" key={group}>
               <button className="toolbox-group-header" onClick={() => toggleGroup(group)}>
-                <span className={`collapse-arrow${isCollapsed ? ' collapsed' : ''}`}>v</span>
+                <span className={`collapse-arrow${isCollapsed ? ' collapsed' : ''}`}>⌄</span>
                 {group}
               </button>
               {!isCollapsed && (
@@ -68,7 +61,7 @@ export default function Toolbox() {
                       className={`toolbox-item${tool === 'pointer' ? ' selected' : ''}`}
                       onClick={() => setTool('pointer')}
                     >
-                      <span className="item-icon">PTR</span>
+                      <span className="item-icon">➤</span>
                       <span className="item-label">Pointer</span>
                     </div>
                   )}

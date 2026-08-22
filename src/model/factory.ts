@@ -1,4 +1,26 @@
-import type { Breakpoint, Page, Project } from './types';
+import type { Breakpoint, DatabaseState, Page, Project } from './types';
+
+export function createDatabaseState(): DatabaseState {
+  return {
+    connections: [],
+    tables: [],
+    views: [],
+    matviews: [],
+    functions: [],
+    queries: [],
+    api: {
+      connectionId: '',
+      tableIds: [],
+      baseUrl: 'https://yourdomain.com/api',
+      auth: 'JWT Authentication',
+      format: 'JSON',
+      version: 'v1',
+      pagination: true,
+      filtering: true,
+      relatedData: false,
+    },
+  };
+}
 
 let counter = 1;
 export function uid(prefix: string): string {
@@ -32,6 +54,7 @@ export function createProject(name = 'Untitled1'): Project {
       { id: 'bp_mobile', name: 'Mobile', maxWidth: 480, orientation: 'none', fontSize: null },
     ],
     breakpointMode: 'smaller',
+    database: createDatabaseState(),
   };
 }
 

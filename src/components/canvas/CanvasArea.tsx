@@ -3,6 +3,10 @@ import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, Pointe
 import { useProjectStore, useCurrentPage } from '../../store/projectStore';
 import ComponentView from './ComponentView';
 import ContextMenu from './ContextMenu';
+import BottomPanel from './BottomPanel';
+import DatabaseWorkspace, { DB_TAB_META } from '../dialogs/DatabaseWorkspace';
+import { previewProject, exportProject } from '../../actions/fileActions';
+import { sortBreakpoints } from '../../model/factory';
 
 /** Monitor-with-badge icon matching the breakpoint bar in WYSIWYG Web Builder. */
 function BreakpointBarIcon({ badge }: { badge: 'plus' | 'gear' }) {
@@ -53,6 +57,11 @@ export default function CanvasArea() {
   const openBreakpointEditor = useProjectStore((s) => s.openBreakpointEditor);
   const openManageBreakpoints = useProjectStore((s) => s.openManageBreakpoints);
   const openContextMenu = useProjectStore((s) => s.openContextMenu);
+  const openDbPages = useProjectStore((s) => s.openDbPages);
+  const activeDbPage = useProjectStore((s) => s.activeDbPage);
+  const setDatabasePage = useProjectStore((s) => s.setDatabasePage);
+  const closeDatabase = useProjectStore((s) => s.closeDatabase);
+  const sortedBreakpoints = sortBreakpoints(breakpoints);
 
   const workspaceRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
@@ -63,7 +72,7 @@ export default function CanvasArea() {
   // Viewport width of the scrollable workspace — lets the artboard fill it.
   const [workspaceWidth, setWorkspaceWidth] = useState(0);
 
-  const activeBp = breakpoints.find((b) => b.id === activeBreakpointId) ?? null;
+  const activeBp = sortedBreakpoints.find((b) => b.id === activeBreakpointId) ?? null;
   // No breakpoint active: extend the page to the workspace's right edge at any zoom
   // (48px ≈ margins + scrollbar). page.width stays the exported page width.
   const fillWidth =
@@ -178,20 +187,92 @@ export default function CanvasArea() {
 
   return (
     <div className="canvas-root">
-      {/* a) page tabs */}
+      {/* a) page tabs — design pages first, then open database tabs (closable) */}
       <div className="page-tabs">
         {pages.map((p) => (
           <div
             key={p.id}
-            className={'page-tab' + (p.id === currentPageId ? ' active' : '')}
+            className={'page-tab' + (p.id === currentPageId && !activeDbPage ? ' active' : '')}
             onClick={() => selectPage(p.id)}
           >
             {p.name}
           </div>
         ))}
+        {openDbPages.map((p) => {
+          const meta = DB_TAB_META.find((m) => m.id === p);
+          return (
+            <div
+              key={p}
+              className={'page-tab page-tab-db' + (activeDbPage === p ? ' active' : '')}
+              onClick={() => setDatabasePage(p)}
+            >
+              {meta?.icon} {meta?.title ?? p}
+              <span
+                className="page-tab-close"
+                title="Close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeDatabase(p);
+                }}
+              >
+                ×
+              </span>
+            </div>
+          );
+        })}
         <div className="page-tab page-tab-add" onClick={addPage} title="Add page">
           +
         </div>
+      </div>
+
+      {activeDbPage ? (
+        <DatabaseWorkspace />
+      ) : (
+        <>
+      {/* a2) dark device-switcher bar (WebDev look) */}
+      <div className="device-bar">
+        <div className="device-bar-group">
+          <button
+            className={'device-bar-btn' + (activeBreakpointId === null ? ' active' : '')}
+            onClick={() => setActiveBreakpoint(null)}
+          >
+            🖥 Desktop
+          </button>
+          <button
+            className={
+              'device-bar-btn' +
+              (activeBp && activeBp.maxWidth > 480 ? ' active' : '')
+            }
+            onClick={() => {
+              const bp =
+                sortedBreakpoints.find((b) => b.maxWidth <= 768 && b.maxWidth > 480) ??
+                sortedBreakpoints.find((b) => b.maxWidth <= 768) ??
+                sortedBreakpoints[0];
+              if (bp) setActiveBreakpoint(bp.id);
+            }}
+          >
+            💻 Tablet
+          </button>
+          <button
+            className={
+              'device-bar-btn' + (activeBp && activeBp.maxWidth <= 480 ? ' active' : '')
+            }
+            onClick={() => {
+              const bp =
+                sortedBreakpoints.find((b) => b.maxWidth <= 480) ?? sortedBreakpoints[sortedBreakpoints.length - 1];
+              if (bp) setActiveBreakpoint(bp.id);
+            }}
+          >
+            📱 Mobile
+          </button>
+        </div>
+        <div className="device-bar-spacer" />
+        <button className="device-bar-icon" title="Preview" onClick={() => void previewProject()}>
+          🔍
+        </button>
+        <button className="device-bar-icon" title="Publish" onClick={() => void exportProject()}>
+          🌐
+        </button>
       </div>
 
       {/* b) rulers */}
@@ -237,7 +318,10 @@ export default function CanvasArea() {
 
       <ContextMenu />
 
-      {/* d) breakpoint bar — pinned to the bottom, always visible */}
+      {/* d) diagnostics panel (Errors / Output / ...) */}
+      <BottomPanel />
+
+      {/* e) breakpoint bar — pinned to the bottom, always visible */}
       <div className="breakpoint-bar">
         <button
           className="bp-bar-btn"
@@ -255,7 +339,7 @@ export default function CanvasArea() {
         >
           Default
         </button>
-        {breakpoints.map((bp) => (
+        {sortedBreakpoints.map((bp) => (
           <button
             key={bp.id}
             className={'bp-chip' + (activeBreakpointId === bp.id ? ' active' : '')}
@@ -265,6 +349,8 @@ export default function CanvasArea() {
           </button>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 }

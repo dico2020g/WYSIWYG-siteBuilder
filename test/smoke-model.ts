@@ -46,8 +46,27 @@ s.updateProps(id, { fontSize: 20 });
 comp = useProjectStore.getState().project.pages[0].components[0];
 assert(comp.x === 200, 'base geometry untouched by breakpoint override');
 assert(comp.overrides[bpId]?.x === 10 && comp.overrides[bpId]?.width === 100, 'override stores geometry');
-const eff = effectiveComponent(comp, bpId);
+const eff = effectiveComponent(comp, useProjectStore.getState().project.breakpoints, bpId);
 assert(eff.x === 10 && eff.width === 100 && eff.props.fontSize === 20 && eff.props.text === 'Click me', 'effectiveComponent merges override');
+
+// responsive cascade: wider breakpoint edits flow down until a narrower override exists
+const tabletBpId = useProjectStore.getState().project.breakpoints.find((b) => b.maxWidth === 768)!.id;
+const mobileBpId = useProjectStore.getState().project.breakpoints.find((b) => b.maxWidth === 480)!.id;
+s.setActiveBreakpoint(tabletBpId);
+s.setGeometry(id, { x: 40 });
+comp = useProjectStore.getState().project.pages[0].components[0];
+const beforeMobileOverride = effectiveComponent(comp, useProjectStore.getState().project.breakpoints, mobileBpId);
+assert(beforeMobileOverride.x === 40, 'wider breakpoint override propagates to narrower breakpoint');
+s.setActiveBreakpoint(mobileBpId);
+s.setGeometry(id, { x: 30 });
+comp = useProjectStore.getState().project.pages[0].components[0];
+s.setActiveBreakpoint(tabletBpId);
+s.setGeometry(id, { x: 60 });
+comp = useProjectStore.getState().project.pages[0].components[0];
+const tabletAfter = effectiveComponent(comp, useProjectStore.getState().project.breakpoints, tabletBpId);
+const mobileAfter = effectiveComponent(comp, useProjectStore.getState().project.breakpoints, mobileBpId);
+assert(tabletAfter.x === 60, 'edited breakpoint updates its own resolved layout');
+assert(mobileAfter.x === 30, 'narrower breakpoint with its own override ignores later wider changes');
 s.setActiveBreakpoint(null);
 
 // events

@@ -11,6 +11,7 @@ export interface ComponentOverride {
   y?: number;
   width?: number;
   height?: number;
+  hidden?: boolean;
   props?: Record<string, unknown>;
 }
 
@@ -44,6 +45,62 @@ export interface Page {
   cssCode?: string;       // custom CSS appended to css/site.css
 }
 
+// ---------- database ----------
+export type DbDriver = 'mysql' | 'mariadb' | 'postgresql' | 'sqlserver' | 'sqlite'
+export interface DbConnection {
+  id: string
+  name: string
+  driver: DbDriver
+  host: string
+  port: string
+  database: string
+  username: string
+  password: string
+}
+export interface DbColumn {
+  id: string
+  name: string
+  dataType: string
+  length: string
+  allowNull: boolean
+  defaultValue: string
+  primaryKey: boolean
+  autoIncrement: boolean
+}
+export interface DbTable {
+  id: string
+  name: string
+  engine: string
+  charset: string
+  collation: string
+  columns: DbColumn[]
+}
+export interface ApiConfig {
+  connectionId: string
+  tableIds: string[]
+  baseUrl: string
+  auth: string
+  format: string
+  version: string
+  pagination: boolean
+  filtering: boolean
+  relatedData: boolean
+}
+export interface DbSqlObject {
+  id: string
+  name: string
+  sql: string
+}
+export interface DatabaseState {
+  connections: DbConnection[]
+  tables: DbTable[]
+  views: DbSqlObject[]
+  matviews: DbSqlObject[]
+  functions: DbSqlObject[]
+  queries: DbSqlObject[]
+  api: ApiConfig
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -51,6 +108,7 @@ export interface Project {
   breakpoints: Breakpoint[];
   /** 'smaller' → @media (max-width: N), 'larger' → @media (min-width: N) */
   breakpointMode: 'smaller' | 'larger';
+  database?: DatabaseState;
 }
 
 export interface ExportFile {

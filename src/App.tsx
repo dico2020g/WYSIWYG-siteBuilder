@@ -9,6 +9,8 @@ import PropertiesPanel from './components/properties/PropertiesPanel';
 import StatusBar from './components/statusbar/StatusBar';
 import BreakpointDialogs from './components/dialogs/BreakpointDialogs';
 import CodeDialogs from './components/dialogs/CodeDialogs';
+import ConnectionsDialog from './components/dialogs/ConnectionsDialog';
+import AppPrompt from './components/dialogs/AppPrompt';
 import { useProjectStore, useCurrentPage } from './store/projectStore';
 
 const LEFT_MIN = 160;
@@ -28,6 +30,7 @@ export default function App() {
   const page = useCurrentPage();
   const projectName = useProjectStore((s) => s.project.name);
   const dirty = useProjectStore((s) => s.dirty);
+  const activeDbPage = useProjectStore((s) => s.activeDbPage);
 
   const [leftWidth, setLeftWidth] = useState(() => readStoredWidth('sb.leftWidth', 220, LEFT_MIN));
   const [rightWidth, setRightWidth] = useState(() => readStoredWidth('sb.rightWidth', 300, RIGHT_MIN));
@@ -112,13 +115,23 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <div className="app-titlebar">
+        <span className="app-titlebar-icon">▣</span>
+        <span className="app-titlebar-text">
+          WYSIWYG SiteBuilder - {projectName} - {page.name}{dirty ? '*' : ''}
+        </span>
+      </div>
       <Ribbon />
       <div className="app-body">
-        <aside className="left-column" style={{ width: leftWidth, minWidth: leftWidth }}>
-          <Toolbox />
-          <BlocksPanel />
-        </aside>
-        <div className="panel-resizer" onPointerDown={startPanelDrag('left')} />
+        {!activeDbPage && (
+          <>
+            <aside className="left-column" style={{ width: leftWidth, minWidth: leftWidth }}>
+              <Toolbox />
+              <BlocksPanel />
+            </aside>
+            <div className="panel-resizer" onPointerDown={startPanelDrag('left')} />
+          </>
+        )}
         <main className="center-column">
           <CanvasArea key={page.id} />
         </main>
@@ -131,6 +144,8 @@ export default function App() {
       <StatusBar />
       <BreakpointDialogs />
       <CodeDialogs />
+      <ConnectionsDialog />
+      <AppPrompt />
     </div>
   );
 }

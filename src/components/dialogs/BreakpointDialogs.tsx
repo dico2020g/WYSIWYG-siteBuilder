@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { Breakpoint } from '../../model/types';
 import { useProjectStore } from '../../store/projectStore';
+import { appAlert, appConfirm } from '../../actions/dialogs';
+import { sortBreakpoints } from '../../model/factory';
 
 const COMMON_WIDTHS = [320, 480, 600, 768, 800, 1024, 1280];
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
@@ -13,7 +15,7 @@ function orientationLabel(o: Breakpoint['orientation']): string {
 
 /* ---------- shared dialog shell (classic Windows look) ---------- */
 
-function DialogShell({
+export function DialogShell({
   title,
   onClose,
   width,
@@ -57,17 +59,18 @@ function ManageBreakpointsDialog() {
   const setBreakpointMode = useProjectStore((s) => s.setBreakpointMode);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = breakpoints.find((b) => b.id === selectedId) ?? null;
-  const selectedIndex = breakpoints.findIndex((b) => b.id === selectedId);
+  const sortedBreakpoints = sortBreakpoints(breakpoints);
+  const selected = sortedBreakpoints.find((b) => b.id === selectedId) ?? null;
+  const selectedIndex = sortedBreakpoints.findIndex((b) => b.id === selectedId);
 
   const onRemove = () => {
     if (selected) removeBreakpoint(selected.id);
     setSelectedId(null);
   };
 
-  const onRemoveAll = () => {
+  const onRemoveAll = async () => {
     if (breakpoints.length === 0) return;
-    if (confirm('Remove all breakpoints?')) {
+    if (await appConfirm('Remove all breakpoints?')) {
       removeAllBreakpoints();
       setSelectedId(null);
     }
@@ -85,14 +88,14 @@ function ManageBreakpointsDialog() {
             </tr>
           </thead>
           <tbody>
-            {breakpoints.length === 0 && (
+            {sortedBreakpoints.length === 0 && (
               <tr>
                 <td colSpan={3} className="dlg-bp-empty">
                   No breakpoints defined.
                 </td>
               </tr>
             )}
-            {breakpoints.map((bp) => (
+            {sortedBreakpoints.map((bp) => (
               <tr
                 key={bp.id}
                 className={bp.id === selectedId ? 'selected' : ''}
@@ -116,7 +119,7 @@ function ManageBreakpointsDialog() {
           <button disabled={!selected} onClick={onRemove}>
             Remove
           </button>
-          <button disabled={breakpoints.length === 0} onClick={onRemoveAll}>
+          <button disabled={sortedBreakpoints.length === 0} onClick={onRemoveAll}>
             Remove All
           </button>
           <button
@@ -126,7 +129,7 @@ function ManageBreakpointsDialog() {
             Move Up
           </button>
           <button
-            disabled={!selected || selectedIndex < 0 || selectedIndex >= breakpoints.length - 1}
+            disabled={!selected || selectedIndex < 0 || selectedIndex >= sortedBreakpoints.length - 1}
             onClick={() => selected && moveBreakpoint(selected.id, 1)}
           >
             Move Down
@@ -196,17 +199,17 @@ function BreakpointEditorDialog() {
   const title =
     editor.mode === 'add' ? 'Add Breakpoint' : editor.mode === 'edit' ? 'Edit Breakpoint' : 'Copy Breakpoint';
 
-  const onOk = () => {
+  const onOk = async () => {
     const maxWidth = parseInt(width, 10);
     if (!Number.isInteger(maxWidth) || maxWidth < 100 || maxWidth > 4000) {
-      alert('Device width must be an integer between 100 and 4000.');
+      await appAlert('Device width must be an integer between 100 and 4000.');
       return;
     }
     let fs: number | null = null;
     if (fontSize.trim() !== '') {
       const parsed = parseInt(fontSize, 10);
       if (!Number.isInteger(parsed) || parsed <= 0) {
-        alert('Default font size must be a positive integer (or empty for none).');
+        await appAlert('Default font size must be a positive integer (or empty for none).');
         return;
       }
       fs = parsed;

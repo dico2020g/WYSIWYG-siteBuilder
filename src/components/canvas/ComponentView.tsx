@@ -1,5 +1,6 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, MouseEvent as ReactMouseEvent } from 'react';
 import { useProjectStore, effectiveComponent } from '../../store/projectStore';
+import { resolveComponentHidden } from '../../model/responsive';
 import { styleFromProps, toReactStyle } from '../../model/styleFromProps';
 import { COMPONENT_MAP } from '../../model/componentDefs';
 import type { ComponentItem } from '../../model/types';
@@ -293,6 +294,21 @@ function renderBasic(type: string, props: Record<string, any>): ReactNode {
 
     case 'htmlEmbed':
       return <div className="cv-fill" dangerouslySetInnerHTML={{ __html: String(props.html ?? '') }} />;
+
+    case 'rectangle':
+    case 'roundedRectangle':
+    case 'ellipse':
+      // pure shape — the wrapper box carries background/border/radius styles
+      return <div className="cv-fill" />;
+
+    case 'list':
+      return (
+        <ul className="cv-fill" style={{ margin: 0, paddingLeft: 20, lineHeight: String(props.lineHeight || '1.8') }}>
+          {String(props.items ?? '').split('\n').filter((s) => s.trim()).map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      );
 
     default:
       return null;
@@ -1257,6 +1273,7 @@ function renderInner(type: string, props: Record<string, any>, style: CSSPropert
 export default function ComponentView({ component }: { component: ComponentItem }) {
   const selectedId = useProjectStore((s) => s.selectedId);
   const activeBreakpointId = useProjectStore((s) => s.activeBreakpointId);
+  const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const zoom = useProjectStore((s) => s.zoom);
   const snapToGrid = useProjectStore((s) => s.snapToGrid);
   const gridSize = useProjectStore((s) => s.gridSize);
@@ -1264,12 +1281,11 @@ export default function ComponentView({ component }: { component: ComponentItem 
   const setGeometry = useProjectStore((s) => s.setGeometry);
   const openContextMenu = useProjectStore((s) => s.openContextMenu);
 
-  const eff = effectiveComponent(component, activeBreakpointId);
+  const eff = effectiveComponent(component, breakpoints, activeBreakpointId);
   const props = eff.props;
   const selected = selectedId === component.id;
   const locked = !!component.locked;
-  const hiddenNow =
-    !!component.hidden || (activeBreakpointId !== null && (component.hiddenIn ?? []).includes(activeBreakpointId));
+  const hiddenNow = resolveComponentHidden(component, breakpoints, activeBreakpointId);
 
   const snapVal = (v: number): number =>
     snapToGrid ? Math.round(v / gridSize) * gridSize : Math.round(v);

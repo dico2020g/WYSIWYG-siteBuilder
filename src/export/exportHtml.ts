@@ -19,6 +19,7 @@
  */
 import type { ComponentItem, ExportFile, Page, Project } from '../model/types';
 import { sortBreakpoints } from '../model/factory';
+import { resolveComponent, resolveComponentHidden } from '../model/responsive';
 import { styleFromProps } from '../model/styleFromProps';
 
 /* ---------------------------------------------------------------- helpers */
@@ -497,6 +498,8 @@ function buildStylesheet(project: Project): string {
   lines.push('body { margin: 0; font-family: Arial, sans-serif; }');
   lines.push('.sb-page { position: relative; margin: 0 auto; }');
   lines.push('.sb-cmp { box-sizing: border-box; }');
+  // Match the design canvas (.cv-heading/.cv-fill): no UA default margins on text elements.
+  lines.push('.sb-page h1, .sb-page h2, .sb-page h3, .sb-page h4, .sb-page h5, .sb-page h6, .sb-page p, .sb-page ul, .sb-page ol { margin: 0; }');
 
   // Tooltip widget styling (pure CSS, driven by the data-tip attribute).
   const hasTooltip = project.pages.some((pg) =>
@@ -555,6 +558,11 @@ function buildStylesheet(project: Project): string {
   // Responsive breakpoints, widest first so narrower rules win by cascade.
   const mode = project.breakpointMode ?? 'smaller'; // old files lack the field
   const bps = sortBreakpoints(project.breakpoints);
+  // Cascade: a breakpoint's arrangement propagates to all narrower screens via
+  // the CSS cascade itself (each @media max-width rule also matches narrower
+  // widths). We therefore only emit a rule when the element's resolved state at
+  // this breakpoint differs from the resolved state at the next wider layer.
+  let widerId: string | null = null;
   for (const bp of bps) {
     const inner: string[] = [];
     if (typeof bp.fontSize === 'number') {
@@ -567,32 +575,33 @@ function buildStylesheet(project: Project): string {
       for (const cmp of page.components) {
         if (cmp.hidden) continue; // base-hidden components are excluded entirely
         const elId = elementId(cmp);
-        if (cmp.hiddenIn?.includes(bp.id)) {
-          inner.push(`  #${elId} { display: none }`);
+        const resolved = resolveComponent(cmp, bps, bp.id);
+        const above = widerId ? resolveComponent(cmp, bps, widerId) : cmp;
+        const hidden = resolveComponentHidden(cmp, bps, bp.id);
+        const aboveHidden = widerId ? resolveComponentHidden(cmp, bps, widerId) : !!cmp.hidden;
+        if (hidden) {
+          if (!aboveHidden) inner.push(`  #${elId} { display: none }`);
           continue;
         }
-        const ov = cmp.overrides?.[bp.id];
-        if (!ov) continue;
-        const geom = {
-          x: ov.x ?? cmp.x,
-          y: ov.y ?? cmp.y,
-          width: ov.width ?? cmp.width,
-          height: ov.height ?? cmp.height,
-        };
-        const mergedProps = { ...cmp.props, ...(ov.props ?? {}) };
-        const css = componentCss(cmp, geom, mergedProps);
+        const keyOf = (r: typeof resolved) =>
+          JSON.stringify({ x: r.x, y: r.y, width: r.width, height: r.height, props: r.props });
+        if (keyOf(resolved) === keyOf(above) && hidden === aboveHidden) continue; // unchanged from wider layer — inherits via cascade
+        const geom = { x: resolved.x, y: resolved.y, width: resolved.width, height: resolved.height };
+        const css = componentCss(cmp, geom, resolved.props);
         // position: absolute is already set in the base rule — keep media rules lean.
         delete (css as Record<string, string>).position;
+        if (aboveHidden) css['display'] = 'revert';
         inner.push(`  #${elId} { ${cssDeclarations(css)} }`);
         if (TABLE_TYPES.has(cmp.type)) {
-          const bw = Number(mergedProps.borderWidth) || 0;
-          const bc = String(mergedProps.borderColor || '#000000');
+          const bw = Number(resolved.props.borderWidth) || 0;
+          const bc = String(resolved.props.borderColor || '#000000');
           if (bw > 0) {
             inner.push(`  #${elId} th, #${elId} td { border: ${bw}px solid ${bc}; }`);
           }
         }
       }
     }
+    widerId = bp.id;
     const feature =
       mode === 'larger' ? `min-width: ${bp.maxWidth}px` : `max-width: ${bp.maxWidth}px`;
     const orientation =
@@ -879,6 +888,21 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
     case 'divider':
       // Line rendered entirely via CSS (background-color + lineThickness).
       return `${openTag(cmp, 'div')}</div>`;
+
+    case 'rectangle':
+    case 'roundedRectangle':
+    case 'ellipse':
+      // Pure shape — styled entirely via CSS.
+      return `${openTag(cmp, 'div')}</div>`;
+
+    case 'list': {
+      const items = String(p.items ?? '')
+        .split('\n')
+        .filter((s) => s.trim())
+        .map((s) => `<li>${escapeHtml(s)}</li>`)
+        .join('');
+      return `${openTag(cmp, 'ul')}${items}</ul>`;
+    }
 
     case 'html':
     case 'htmlEmbed':
