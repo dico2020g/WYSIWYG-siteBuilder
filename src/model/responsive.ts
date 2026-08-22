@@ -1,4 +1,4 @@
-import type { Breakpoint, ComponentItem, ComponentOverride } from './types';
+import type { Breakpoint, ComponentItem, ComponentOverride, Page } from './types';
 
 /**
  * Responsive cascade — WYSIWYG Web Builder semantics:
@@ -70,6 +70,19 @@ export function resolveComponent(
     height: Math.round(height * scale),
     props: { ...c.props, ...(ov.props ?? {}) },
   };
+}
+
+/** Width of the Default design layer used as the responsive scaling source.
+ *  The canvas can visually grow wider than page.width, so include visible
+ *  components that extend past the saved page width to keep render/export
+ *  aligned with what was designed. */
+export function responsiveBaseWidth(page: Pick<Page, 'width' | 'components'>): number {
+  return Math.max(
+    page.width,
+    ...page.components
+      .filter((c) => !c.hidden)
+      .map((c) => Math.max(0, c.x + c.width))
+  );
 }
 
 /** Effective visibility at a breakpoint. Any component override at a narrower

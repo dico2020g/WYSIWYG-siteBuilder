@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore, useCurrentPage, effectiveComponent } from '../../store/projectStore';
 import { COMPONENT_MAP, COMMON_GROUPS, EVENT_NAMES } from '../../model/componentDefs';
+import { responsiveBaseWidth } from '../../model/responsive';
 import type { PropField } from '../../model/componentDefs';
 import type { Project } from '../../model/types';
 import CodeEditor from '../code/CodeEditor';
@@ -192,7 +193,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const openCodeDialog = useProjectStore((s) => s.openCodeDialog);
 
   if (!comp) return null;
-  const eff = effectiveComponent(comp, breakpoints, bpId, page.width);
+  const eff = effectiveComponent(comp, breakpoints, bpId, responsiveBaseWidth(page));
   const def = COMPONENT_MAP[comp.type];
 
   const hasOverride = !!(bpId && comp.overrides[bpId]);

@@ -1,6 +1,7 @@
 // Smoke test for model/store/exporter. Bundled with esbuild, run with node.
 import { useProjectStore, effectiveComponent } from '../src/store/projectStore';
 import { exportSite } from '../src/export/exportHtml';
+import { responsiveBaseWidth } from '../src/model/responsive';
 
 let failures = 0;
 function assert(cond: boolean, msg: string) {
@@ -60,6 +61,14 @@ const scaleComp = useProjectStore.getState().project.pages[0].components.find((c
 const scaledMobile = effectiveComponent(scaleComp, useProjectStore.getState().project.breakpoints, mobileBpId, pageWidth);
 assert(scaledMobile.width === Math.round(900 * (480 / pageWidth)), 'desktop-only width scales into untouched mobile breakpoint');
 assert(scaledMobile.height === Math.round(100 * (480 / pageWidth)), 'desktop-only height scales proportionally into untouched mobile breakpoint');
+const wideId = s.addComponent('heading', 20, 160)!;
+s.setGeometry(wideId, { x: 20, y: 160, width: pageWidth + 300, height: 90 });
+let widePage = useProjectStore.getState().project.pages[0];
+const wideBaseWidth = responsiveBaseWidth(widePage);
+const wideComp = widePage.components.find((c) => c.id === wideId)!;
+const wideMobile = effectiveComponent(wideComp, useProjectStore.getState().project.breakpoints, mobileBpId, wideBaseWidth);
+assert(wideBaseWidth === wideComp.x + wideComp.width, 'responsive base width expands to cover desktop design extent');
+assert(wideMobile.width === Math.round(wideComp.width * (480 / wideBaseWidth)), 'wide desktop object scales from design extent, not stale page width');
 s.setActiveBreakpoint(tabletBpId);
 s.setGeometry(id, { x: 40 });
 comp = useProjectStore.getState().project.pages[0].components[0];
@@ -96,6 +105,7 @@ assert(names.includes('index.html') && names.includes('about.html'), 'export emi
 const css = files.find((f) => f.name === 'css/site.css')!.content;
 assert(css.includes('@media (max-width: 360px)'), 'css has custom breakpoint media query');
 assert(css.includes('@media (max-width: 768px)'), 'css has default tablet breakpoint');
+assert(css.includes(`width: ${wideBaseWidth}px`), 'exported page width covers default design extent');
 assert(css.includes(`#${id}`), 'css contains component rule');
 const html = files.find((f) => f.name === 'index.html')!.content;
 assert(html.includes('onclick="alert(&quot;hi&quot;)"'), 'event handler exported escaped');

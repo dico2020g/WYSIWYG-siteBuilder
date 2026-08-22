@@ -19,7 +19,7 @@
  */
 import type { ComponentItem, ExportFile, Page, Project } from '../model/types';
 import { sortBreakpoints } from '../model/factory';
-import { resolveComponent, resolveComponentHidden } from '../model/responsive';
+import { resolveComponent, resolveComponentHidden, responsiveBaseWidth } from '../model/responsive';
 import { styleFromProps } from '../model/styleFromProps';
 
 /* ---------------------------------------------------------------- helpers */
@@ -526,8 +526,9 @@ function buildStylesheet(project: Project): string {
 
   // Per-page wrapper rules.
   for (const page of project.pages) {
+    const baseWidth = responsiveBaseWidth(page);
     lines.push(
-      `.${pageClassName(page)} { width: ${px(page.width)}; min-height: ${px(page.height)}; background: ${page.backgroundColor || '#ffffff'}; }`
+      `.${pageClassName(page)} { width: ${px(baseWidth)}; min-height: ${px(page.height)}; background: ${page.backgroundColor || '#ffffff'}; }`
     );
   }
   lines.push('');
@@ -569,14 +570,15 @@ function buildStylesheet(project: Project): string {
       inner.push(`  html { font-size: ${bp.fontSize}px }`);
     }
     for (const page of project.pages) {
+      const baseWidth = responsiveBaseWidth(page);
       inner.push(
         `  .${pageClassName(page)} { width: 100%; max-width: ${px(bp.maxWidth)}; min-height: ${px(page.height)}; }`
       );
       for (const cmp of page.components) {
         if (cmp.hidden) continue; // base-hidden components are excluded entirely
         const elId = elementId(cmp);
-        const resolved = resolveComponent(cmp, bps, bp.id, page.width);
-        const above = widerId ? resolveComponent(cmp, bps, widerId, page.width) : cmp;
+        const resolved = resolveComponent(cmp, bps, bp.id, baseWidth);
+        const above = widerId ? resolveComponent(cmp, bps, widerId, baseWidth) : cmp;
         const hidden = resolveComponentHidden(cmp, bps, bp.id);
         const aboveHidden = widerId ? resolveComponentHidden(cmp, bps, widerId) : !!cmp.hidden;
         if (hidden) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore, useCurrentPage } from '../../store/projectStore';
 import { COMPONENT_MAP } from '../../model/componentDefs';
+import { responsiveBaseWidth } from '../../model/responsive';
 import { appAlert } from '../../actions/dialogs';
 import { appPrompt } from '../../actions/promptDialog';
 
@@ -79,7 +80,7 @@ export default function ContextMenu() {
   };
 
   const activeBp = breakpoints.find((b) => b.id === activeBreakpointId) ?? null;
-  const artboardWidth = activeBp ? activeBp.maxWidth : page.width;
+  const artboardWidth = activeBp ? activeBp.maxWidth : responsiveBaseWidth(page);
 
   const doCenter = (axis: 'h' | 'v' | 'both') =>
     run(() => id && st().centerInPage(id, axis, artboardWidth, page.height));
