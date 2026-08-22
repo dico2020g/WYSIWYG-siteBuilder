@@ -17,6 +17,47 @@ interface RibbonButtonProps {
   active?: boolean;
 }
 
+function outlineIcon(label: string, fallback: string): string {
+  const key = label.toLowerCase();
+  if (key.includes('new')) return '□';
+  if (key.includes('open')) return '▱';
+  if (key.includes('save')) return '▣';
+  if (key.includes('close') || key.includes('delete')) return '×';
+  if (key.includes('cut')) return '⌘';
+  if (key.includes('copy') || key.includes('clone') || key.includes('group')) return '⧉';
+  if (key.includes('paste')) return '▤';
+  if (key.includes('undo')) return '↶';
+  if (key.includes('redo')) return '↷';
+  if (key.includes('select')) return '⌖';
+  if (key.includes('move')) return '✣';
+  if (key.includes('size') || key.includes('fit')) return '□';
+  if (key.includes('align')) return '☷';
+  if (key.includes('front')) return '▥';
+  if (key.includes('back')) return '▧';
+  if (key.includes('preview') || key.includes('view')) return '◎';
+  if (key.includes('publish')) return '◉';
+  if (key.includes('breakpoint') || key.includes('responsive')) return '▯';
+  if (key.includes('grid')) return '⌗';
+  if (key.includes('zoom')) return '⊕';
+  if (key.includes('theme')) return '◫';
+  if (key.includes('color')) return '◌';
+  if (key.includes('font')) return 'A';
+  if (key.includes('page')) return '▯';
+  if (key.includes('layout')) return '▦';
+  if (key.includes('connection')) return '⌁';
+  if (key.includes('query')) return '⌕';
+  if (key.includes('table')) return '▦';
+  if (key.includes('model')) return '◇';
+  if (key.includes('toolbox') || key.includes('properties')) return '▤';
+  if (key.includes('explorer')) return '▱';
+  if (key.includes('output')) return '▭';
+  if (key.includes('cascade') || key.includes('tile')) return '▧';
+  if (key.includes('reset')) return '↻';
+  if (key.includes('help')) return '?';
+  if (key.includes('about')) return 'i';
+  return /^[A-Za-z0-9:+-]+$/.test(fallback) ? fallback : '◇';
+}
+
 function RibbonButton({ icon, label, onClick, disabled, active }: RibbonButtonProps) {
   return (
     <button
@@ -25,7 +66,7 @@ function RibbonButton({ icon, label, onClick, disabled, active }: RibbonButtonPr
       disabled={disabled}
       title={label}
     >
-      <span className="ribbon-btn-icon">{icon}</span>
+      <span className="ribbon-btn-icon">{outlineIcon(label, icon)}</span>
       <span className="ribbon-btn-label">{label}</span>
     </button>
   );

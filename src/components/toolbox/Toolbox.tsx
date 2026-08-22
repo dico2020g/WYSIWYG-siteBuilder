@@ -20,13 +20,34 @@ export default function Toolbox() {
   };
 
   const iconFor = (def: ComponentDef) => {
-    const icon = String(def.icon ?? '').trim();
-    if (icon) return icon;
+    const type = def.type.toLowerCase();
+    if (['section', 'container', 'panel', 'group'].includes(type)) return '▯';
+    if (['row', 'column', 'flex', 'grid'].includes(type)) return '▦';
+    if (type === 'card') return '▤';
+    if (type === 'spacer') return '↕';
+    if (type === 'heading') return 'H';
+    if (type === 'paragraph' || type === 'text') return 'T';
+    if (type === 'image' || type === 'gallery' || type === 'lightbox') return '▧';
+    if (type === 'button' || type === 'submit' || type === 'reset') return '▭';
+    if (type === 'link') return '⌁';
+    if (type === 'icon') return '☆';
+    if (type === 'divider') return '─';
+    if (type.includes('input') || type === 'password' || type === 'email' || type === 'tel' || type === 'number') return '▱';
+    if (type === 'textarea') return '▤';
+    if (type === 'checkbox') return '☑';
+    if (type === 'radio') return '◎';
+    if (type === 'select') return '▾';
+    if (type === 'date' || type === 'time' || type === 'calendar') return '□';
+    if (type === 'file') return '▯';
+    if (type === 'navbar' || type === 'menu' || type === 'tabs') return '☰';
+    if (type === 'video' || type === 'audio') return '▷';
+    if (type === 'table' || type === 'datagrid' || type === 'dbtable') return '▦';
+    if (type === 'htmlembed' || type === 'iframe') return '</>';
     return def.label
       .split(/\s+/)
       .map((part) => part[0])
       .join('')
-      .slice(0, 3)
+      .slice(0, 2)
       .toUpperCase();
   };
 
