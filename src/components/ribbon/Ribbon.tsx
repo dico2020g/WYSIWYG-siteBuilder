@@ -5,9 +5,9 @@ import { openProject, saveProject, exportProject, previewProject } from '../../a
 import { appConfirm } from '../../actions/dialogs';
 import { appPrompt } from '../../actions/promptDialog';
 
-type RibbonTab = 'File' | 'Home' | 'Insert' | 'Page' | 'Database' | 'View' | 'Arrange' | 'Tools' | 'Help';
+type RibbonTab = 'File' | 'Home' | 'Project' | 'Design' | 'Insert' | 'View' | 'Tools' | 'Window' | 'Help' | 'Arrange';
 
-const TABS: RibbonTab[] = ['File', 'Home', 'Insert', 'Page', 'Database', 'View', 'Arrange', 'Tools', 'Help'];
+const TABS: RibbonTab[] = ['File', 'Home', 'Project', 'Design', 'Insert', 'View', 'Tools', 'Window', 'Help'];
 
 interface RibbonButtonProps {
   icon: string;
@@ -189,7 +189,7 @@ export default function Ribbon() {
           </>
         )}
 
-        {activeTab === 'Page' && (
+        {activeTab === 'Project' && (
           <>
             <RibbonGroup caption="Page">
               <RibbonButton icon="📄" label="New Page" onClick={addPage} />
@@ -204,7 +204,31 @@ export default function Ribbon() {
           </>
         )}
 
-        {activeTab === 'Database' && (
+        {activeTab === 'Design' && (
+          <>
+            <RibbonGroup caption="Appearance">
+              <RibbonButton icon="◫" label="Themes" disabled />
+              <RibbonButton icon="◌" label="Color Scheme" disabled />
+              <RibbonButton icon="A" label="Fonts" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Page">
+              <RibbonButton icon="▣" label="Page Properties" disabled />
+              <RibbonButton icon="▦" label="Layout" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Responsive">
+              <RibbonButton icon="+" label="Add Breakpoint" onClick={() => openBreakpointEditor({ mode: 'add' })} />
+              <RibbonButton icon="⚙" label="Manage Breakpoints" onClick={openManageBreakpoints} />
+            </RibbonGroup>
+            <RibbonGroup caption="Arrange">
+              <RibbonButton icon="⏫" label="To Front" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'front')} />
+              <RibbonButton icon="▲" label="Forward" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'forward')} />
+              <RibbonButton icon="▼" label="Backward" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'backward')} />
+              <RibbonButton icon="⏬" label="To Back" disabled={!selectedId} onClick={() => selectedId && arrange(selectedId, 'back')} />
+            </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'Tools' && (
           <>
             <RibbonGroup caption="Connection">
               <RibbonButton icon="🔌" label="Connection" onClick={openConnections} />
@@ -256,6 +280,25 @@ export default function Ribbon() {
             <RibbonButton icon="🔧" label="Options" disabled />
             <RibbonButton icon="✅" label="Spell Check" disabled />
           </RibbonGroup>
+        )}
+
+        {activeTab === 'Window' && (
+          <>
+            <RibbonGroup caption="Panels">
+              <RibbonButton icon="☑" label="Toolbox" disabled />
+              <RibbonButton icon="☑" label="Project Explorer" disabled />
+              <RibbonButton icon="☑" label="Properties" disabled />
+              <RibbonButton icon="☐" label="Output" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Windows">
+              <RibbonButton icon="▤" label="Cascade" disabled />
+              <RibbonButton icon="▥" label="Tile Horizontal" disabled />
+              <RibbonButton icon="▧" label="Tile Vertical" disabled />
+            </RibbonGroup>
+            <RibbonGroup caption="Arrange">
+              <RibbonButton icon="↻" label="Reset Layout" disabled />
+            </RibbonGroup>
+          </>
         )}
 
         {activeTab === 'Help' && (

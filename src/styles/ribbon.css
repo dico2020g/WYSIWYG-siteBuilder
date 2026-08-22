@@ -1,36 +1,46 @@
 /* Ribbon (WebDev-style) */
+.ribbon {
+  flex: none;
+  background: #ffffff;
+  border-bottom: 1px solid #cfd8e3;
+  box-shadow: 0 1px 0 #ffffff inset, 0 1px 5px rgba(15, 23, 42, 0.08);
+}
 .ribbon-tabs {
   display: flex;
-  gap: 2px;
-  background: #f3f3f3;
-  padding: 0 8px;
-  border-bottom: 1px solid #d6d6d6;
+  gap: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f6fa 100%);
+  padding: 0 10px;
+  border-bottom: 1px solid #dfe5ee;
   flex: none;
 }
 .ribbon-tab {
   border: none;
   background: none;
-  padding: 8px 16px;
+  min-width: 74px;
+  padding: 10px 14px 9px;
   font-size: 13px;
   cursor: pointer;
-  color: #333;
-  border-bottom: 2px solid transparent;
+  color: #1c2738;
+  border-bottom: 3px solid transparent;
+  position: relative;
 }
-.ribbon-tab:hover { background: #e8e8e8; }
+.ribbon-tab:hover { background: #edf4ff; color: #0b61d8; }
 .ribbon-tab.active {
-  color: #0078d4;
+  color: #111827;
   font-weight: 600;
   background: #ffffff;
-  border-bottom-color: #0078d4;
+  border-bottom-color: #1677ff;
 }
 .ribbon-content {
   display: flex;
   align-items: stretch;
   gap: 0;
-  background: #ffffff;
-  padding: 6px 10px 4px;
-  border-bottom: 1px solid #d6d6d6;
-  height: 96px;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(22, 119, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
+  padding: 9px 12px 6px;
+  border-bottom: 1px solid #d8e0eb;
+  height: 104px;
   flex: none;
   overflow-x: auto;
   overflow-y: hidden;
@@ -38,8 +48,8 @@
 .ribbon-group {
   display: flex;
   flex-direction: column;
-  padding: 0 10px;
-  border-right: 1px solid #e3e3e3;
+  padding: 0 12px;
+  border-right: 1px solid #e5ebf3;
   min-width: 0;
   flex-shrink: 0;
 }
@@ -54,9 +64,9 @@
 }
 .ribbon-group-label, .ribbon-group-caption {
   font-size: 10.5px;
-  color: #666;
+  color: #667085;
   text-align: center;
-  padding-top: 3px;
+  padding-top: 5px;
   flex: none;
   white-space: nowrap;
 }
@@ -66,23 +76,37 @@
   align-items: center;
   justify-content: flex-start;
   gap: 4px;
-  min-width: 48px;
-  padding: 6px 7px 3px;
+  min-width: 54px;
+  padding: 6px 8px 4px;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 6px;
   background: none;
   cursor: pointer;
   font-size: 11px;
-  color: #1f1f1f;
+  color: #172033;
   line-height: 1.15;
   text-align: center;
   white-space: normal;
-  max-width: 78px;
+  max-width: 86px;
 }
-.ribbon-btn:hover:not(:disabled) { background: #e5f1fb; border-color: #99c9ef; }
-.ribbon-btn:active:not(:disabled), .ribbon-btn.active { background: #cce4f7; border-color: #0078d4; }
+.ribbon-btn:hover:not(:disabled) {
+  background: #eef6ff;
+  border-color: #b8d7ff;
+  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.12);
+}
+.ribbon-btn:active:not(:disabled), .ribbon-btn.active {
+  background: linear-gradient(180deg, #dcecff 0%, #cfe5ff 100%);
+  border-color: #1677ff;
+  color: #064fb1;
+}
 .ribbon-btn:disabled { opacity: 0.45; cursor: default; }
-.ribbon-icon, .ribbon-btn-icon { font-size: 20px; line-height: 1; font-family: "Segoe UI Symbol", "Segoe UI Emoji", sans-serif; }
+.ribbon-icon, .ribbon-btn-icon {
+  font-size: 21px;
+  line-height: 1;
+  min-height: 22px;
+  color: #0d6efd;
+  font-family: "Segoe UI Symbol", "Segoe UI Emoji", sans-serif;
+}
 .ribbon-label, .ribbon-btn-label { font-size: 11px; }
 .ribbon-zoom-label { align-self: center; font-size: 11px; color: #555; padding: 0 6px; }
 .ribbon-field {
@@ -94,10 +118,14 @@
 }
 .ribbon-field-label { font-size: 10.5px; color: #666; }
 .ribbon-select {
-  padding: 4px 6px;
-  border: 1px solid #c8c8c8;
-  border-radius: 3px;
+  padding: 5px 24px 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
   font-size: 12px;
   background: #fff;
   min-width: 110px;
+}
+.ribbon-select:focus {
+  outline: 2px solid rgba(22, 119, 255, 0.18);
+  border-color: #1677ff;
 }

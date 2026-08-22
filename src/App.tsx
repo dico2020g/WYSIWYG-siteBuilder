@@ -120,6 +120,11 @@ export default function App() {
         <span className="app-titlebar-text">
           WYSIWYG SiteBuilder - {projectName} - {page.name}{dirty ? '*' : ''}
         </span>
+        <div className="app-window-controls" aria-hidden="true">
+          <span>−</span>
+          <span>□</span>
+          <span>×</span>
+        </div>
       </div>
       <Ribbon />
       <div className="app-body">

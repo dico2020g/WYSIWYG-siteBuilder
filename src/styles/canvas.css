@@ -4,16 +4,17 @@
 /* page tabs */
 .page-tabs {
   display: flex; align-items: flex-end; height: 26px;
-  background: #dcdcdc; border-bottom: 1px solid #c4c4c4;
-  padding: 0 4px; gap: 1px; overflow-x: auto; flex-shrink: 0;
+  background: #f5f7fb; border-bottom: 1px solid #d7e0ea;
+  padding: 0 8px; gap: 2px; overflow-x: auto; flex-shrink: 0;
 }
 .page-tab {
-  padding: 4px 14px; font-size: 12px; line-height: 16px;
-  background: #cfcfcf; border: 1px solid #b8b8b8; border-bottom: none;
-  border-radius: 3px 3px 0 0; cursor: pointer; white-space: nowrap;
+  padding: 5px 14px; font-size: 12px; line-height: 16px;
+  background: #edf1f6; border: 1px solid #d1dbe8; border-bottom: none;
+  border-radius: 5px 5px 0 0; cursor: pointer; white-space: nowrap;
+  color: #243044;
 }
-.page-tab:hover { background: #e2e2e2; }
-.page-tab.active { background: #ffffff; color: #1e1e1e; font-weight: 600; }
+.page-tab:hover { background: #f8fbff; }
+.page-tab.active { background: #ffffff; color: #0b61d8; font-weight: 600; }
 .page-tab-add { padding: 4px 10px; font-weight: 600; }
 .page-tab-db { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
 .page-tab-close {
@@ -26,83 +27,100 @@
 /* dark device-switcher bar (WebDev look) */
 .device-bar {
   display: flex; align-items: center; gap: 4px;
-  height: 36px; flex-shrink: 0;
-  background: #2d2d30; padding: 0 8px;
+  height: 38px; flex-shrink: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #1b212b;
+  padding: 0 12px;
+  border-bottom: 1px solid #111722;
 }
 .device-bar-group { display: flex; gap: 2px; }
 .device-bar-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 26px; padding: 0 12px;
-  border: none; border-radius: 3px;
-  background: transparent; color: #d4d4d4;
+  height: 27px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04); color: #d9e2ef;
   font-size: 12px; cursor: pointer;
 }
-.device-bar-btn:hover { background: #3e3e42; }
-.device-bar-btn.active { background: #0078d4; color: #ffffff; }
+.device-bar-btn:hover { background: rgba(255, 255, 255, 0.09); }
+.device-bar-btn.active {
+  background: #1677ff;
+  border-color: #2d8cff;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(22, 119, 255, 0.28);
+}
 .device-bar-spacer { flex: 1; }
 .device-bar-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 26px;
   border: none; border-radius: 3px;
-  background: transparent; color: #d4d4d4;
+  background: rgba(255, 255, 255, 0.04); color: #d9e2ef;
   font-size: 13px; cursor: pointer;
 }
-.device-bar-icon:hover { background: #3e3e42; }
+.device-bar-icon:hover { background: rgba(255, 255, 255, 0.1); }
 
 /* rulers */
 .ruler-top { display: flex; height: 20px; flex-shrink: 0; }
 .ruler-corner {
-  width: 20px; min-width: 20px; background: #f5f5f5;
-  border-right: 1px solid #d0d0d0; border-bottom: 1px solid #d0d0d0;
+  width: 20px; min-width: 20px; background: #151b24;
+  border-right: 1px solid #2b3442; border-bottom: 1px solid #2b3442;
 }
 .ruler-h {
-  flex: 1; height: 20px; display: block; background: #f5f5f5;
-  border-bottom: 1px solid #d0d0d0;
+  flex: 1; height: 20px; display: block; background: #151b24;
+  border-bottom: 1px solid #2b3442;
 }
 .canvas-middle { display: flex; flex: 1; min-height: 0; }
 .ruler-v {
-  width: 20px; min-width: 20px; display: block; background: #f5f5f5;
-  border-right: 1px solid #d0d0d0;
+  width: 20px; min-width: 20px; display: block; background: #151b24;
+  border-right: 1px solid #2b3442;
 }
 
 /* workspace + artboard */
-.canvas-workspace { flex: 1; overflow: auto; background: #e8e8e8; min-width: 0; }
-.artboard-spacer { margin: 20px auto 0; position: relative; }
+.canvas-workspace {
+  flex: 1;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(38, 54, 74, 0.45), transparent 32%),
+    #10161d;
+  min-width: 0;
+}
+.artboard-spacer { margin: 22px auto 0; position: relative; }
 .artboard {
   position: relative; background: #ffffff;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.28), 0 14px 34px rgba(0, 0, 0, 0.35);
   transform-origin: 0 0;
 }
 
 /* breakpoint bar — pinned to the bottom of the center column */
 .breakpoint-bar {
   display: flex; align-items: center; gap: 4px;
-  height: 28px; padding: 0 6px; flex-shrink: 0;
-  background: #f5f5f5; border-top: 1px solid #d0d0d0;
+  height: 30px; padding: 0 8px; flex-shrink: 0;
+  background: #f9fbfe; border-top: 1px solid #cfd8e3;
   overflow-x: auto;
 }
 .bp-bar-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 22px; padding: 0; flex-shrink: 0;
-  border: 1px solid transparent; border-radius: 3px;
+  border: 1px solid transparent; border-radius: 4px;
   background: transparent; cursor: pointer; font-size: 13px; line-height: 1;
 }
-.bp-bar-btn:hover { background: #e5f1fb; border-color: #0078d7; }
+.bp-bar-btn:hover { background: #eef6ff; border-color: #1677ff; }
 .bp-bar-btn svg { display: block; }
 .bp-chip {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 12px; font-size: 11px; line-height: 16px; flex-shrink: 0;
-  background: #ffffff; border: 1px solid #c4c4c4; border-radius: 10px;
-  cursor: pointer; color: #444;
+  padding: 3px 13px; font-size: 11px; line-height: 16px; flex-shrink: 0;
+  background: #ffffff; border: 1px solid #d1dbe8; border-radius: 12px;
+  cursor: pointer; color: #344054;
 }
-.bp-chip:hover { background: #f0f0f0; }
+.bp-chip:hover { background: #eef6ff; }
 .bp-chip.active {
-  background: #0d99ff; border-color: #0d99ff; color: #ffffff;
+  background: #1677ff; border-color: #1677ff; color: #ffffff;
+  box-shadow: 0 3px 10px rgba(22, 119, 255, 0.2);
 }
 
 /* components on the artboard */
 .canvas-component { position: absolute; }
-.canvas-component.selected { outline: 1.5px solid #0d99ff; }
+.canvas-component.selected { outline: 1.5px solid #1677ff; }
 .cv-content { width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
 .cv-fill { width: 100%; height: 100%; }
 .cv-heading { font-size: inherit; font-weight: inherit; font-family: inherit; margin: 0; }
@@ -134,7 +152,8 @@
 /* resize handles */
 .resize-handle {
   position: absolute; width: 8px; height: 8px;
-  background: #ffffff; border: 1px solid #0d99ff; z-index: 100;
+  background: #ffffff; border: 1px solid #1677ff; z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
 }
 .rh-nw { top: -4px; left: -4px; }
 .rh-n  { top: -4px; left: 50%; margin-left: -4px; }
@@ -192,30 +211,30 @@
 .bottom-panel {
   flex-shrink: 0;
   background: #ffffff;
-  border-top: 1px solid #d0d0d0;
+  border-top: 1px solid #cfd8e3;
   display: flex; flex-direction: column;
   height: 150px;
 }
 .bottom-panel.collapsed { height: auto; }
 .bottom-panel-tabs {
   display: flex; align-items: center; gap: 2px;
-  height: 26px; flex-shrink: 0;
-  background: #f3f3f3; border-bottom: 1px solid #d8d8d8;
-  padding: 0 6px;
+  height: 30px; flex-shrink: 0;
+  background: #f9fbfe; border-bottom: 1px solid #dfe5ee;
+  padding: 0 8px;
 }
 .bottom-panel-tab {
   border: none; background: none;
-  padding: 4px 12px; font-size: 12px; cursor: pointer; color: #444;
-  border-bottom: 2px solid transparent;
+  padding: 6px 13px; font-size: 12px; cursor: pointer; color: #344054;
+  border-bottom: 3px solid transparent;
 }
-.bottom-panel-tab:hover { background: #e8e8e8; }
-.bottom-panel-tab.active { color: #0078d4; font-weight: 600; border-bottom-color: #0078d4; background: #ffffff; }
+.bottom-panel-tab:hover { background: #eef6ff; }
+.bottom-panel-tab.active { color: #0b61d8; font-weight: 600; border-bottom-color: #1677ff; background: #ffffff; }
 .bottom-panel-spacer { flex: 1; }
 .bottom-panel-toggle {
   border: none; background: none; cursor: pointer;
   font-size: 11px; color: #666; padding: 3px 8px;
 }
-.bottom-panel-toggle:hover { background: #e0e0e0; }
+.bottom-panel-toggle:hover { background: #eef6ff; }
 .bottom-panel-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .bottom-panel-counts {
   display: flex; gap: 18px;

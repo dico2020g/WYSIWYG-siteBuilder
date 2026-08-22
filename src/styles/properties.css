@@ -3,7 +3,7 @@
 .props-panel {
   flex: 1;
   min-height: 0;
-  border-top: 1px solid #d8d8d8;
+  border-top: 1px solid #dfe7f1;
 }
 
 .props-body {
@@ -16,9 +16,9 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 4px 6px;
+  background: #fbfcfe;
+  border-bottom: 1px solid #e5ebf3;
+  padding: 8px 10px;
 }
 
 .props-selector {
@@ -30,7 +30,7 @@
 }
 
 .props-selector-name {
-  color: #1e1e1e;
+  color: #172033;
 }
 
 .props-selector-id {
@@ -41,16 +41,17 @@
 
 .props-search {
   width: 100%;
-  padding: 2px 6px;
-  border: 1px solid #c8c8c8;
-  border-radius: 2px;
+  height: 28px;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
   background: #ffffff;
 }
 
 /* ---------- collapsible groups ---------- */
 
 .props-group {
-  border-bottom: 1px solid #e4e4e4;
+  border-bottom: 1px solid #edf1f6;
 }
 
 .props-group-header {
@@ -58,18 +59,19 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  height: 22px;
-  padding: 0 6px;
+  height: 28px;
+  padding: 0 10px;
   border: none;
-  background: #f0f0f0;
+  background: #ffffff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: left;
   cursor: pointer;
+  color: #243044;
 }
 
 .props-group-header:hover {
-  background: #e6e6e6;
+  background: #f3f8ff;
 }
 
 .props-group-arrow {
@@ -84,14 +86,14 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 4px 6px;
+  padding: 5px 10px;
 }
 
 .props-label {
   flex: 0 0 110px;
   width: 110px;
   padding-top: 3px;
-  color: #333333;
+  color: #475467;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -109,9 +111,10 @@
 .props-control textarea,
 .props-search {
   width: 100%;
-  padding: 2px 4px;
-  border: 1px solid #c8c8c8;
-  border-radius: 2px;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
   background: #ffffff;
 }
 
@@ -126,7 +129,8 @@
 .props-search:focus {
   outline: 1px solid #0d99ff;
   outline-offset: 0;
-  border-color: #0d99ff;
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
 }
 
 .props-control input:disabled {
@@ -150,8 +154,8 @@
   width: 28px;
   height: 22px;
   padding: 0;
-  border: 1px solid #c8c8c8;
-  border-radius: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
   background: none;
   cursor: pointer;
 }
@@ -175,15 +179,15 @@
   flex: 0 0 28px;
   width: 28px;
   padding: 0;
-  border: 1px solid #c8c8c8;
-  border-radius: 2px;
-  background: #f8f8f8;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #f8fafc;
   cursor: pointer;
 }
 
 .props-effect-picker button:hover {
-  background: #e5f1fb;
-  border-color: #0078d7;
+  background: #eef6ff;
+  border-color: #1677ff;
 }
 
 /* override notice */
@@ -194,10 +198,10 @@
   gap: 6px;
   margin: 4px 6px;
   padding: 4px 6px;
-  background: #fff4d6;
-  border: 1px solid #e0c878;
-  border-radius: 2px;
-  color: #6b5300;
+  background: #fff8e7;
+  border: 1px solid #f0c36d;
+  border-radius: 4px;
+  color: #7a5200;
 }
 
 .props-override-notice button {
@@ -217,19 +221,19 @@
 .props-event-btn {
   min-width: 40px;
   padding: 2px 8px;
-  border: 1px solid #c8c8c8;
-  border-radius: 2px;
-  background: #f8f8f8;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #f8fafc;
   cursor: pointer;
 }
 
 .props-event-btn:hover {
-  background: #ececec;
+  background: #eef6ff;
 }
 
 .props-event-btn.has-code {
-  background: #0d99ff;
-  border-color: #0d99ff;
+  background: #1677ff;
+  border-color: #1677ff;
   color: #ffffff;
   font-weight: 600;
 }
