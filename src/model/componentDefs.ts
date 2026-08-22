@@ -342,4 +342,13 @@ export const TOOLBOX_GROUPS = [
   'User', 'E-Commerce',
 ];
 
-export const EVENT_NAMES = ['onclick', 'ondblclick', 'onmouseenter', 'onmouseleave', 'onload'];
+export const EVENT_NAMES = [
+  'onanimationend', 'onanimationiteration', 'onanimationstart', 'onchange',
+  'onclick', 'oncontextmenu', 'ondblclick', 'ondocumentready', 'ondrag',
+  'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart',
+  'ondrop', 'oninput', 'onkeydown', 'onkeypress', 'onkeyup', 'onmousedown',
+  'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover',
+  'onmouseup', 'onreset', 'onscroll', 'onscrollhide', 'onscrollreveal',
+  'onscrollrevealpartial', 'onsubmit', 'ontouchcancel', 'ontouchend',
+  'ontouchmove', 'ontouchstart', 'ontransitionend', 'onwheel',
+];

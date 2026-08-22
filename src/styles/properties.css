@@ -234,6 +234,117 @@
   font-weight: 600;
 }
 
+.props-event-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.props-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 1px solid #b8b8b8;
+  border-radius: 2px;
+  background: #f8f8f8;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.props-icon-btn:hover,
+.props-event-mini:hover {
+  background: #e5f1fb;
+  border-color: #0078d7;
+}
+
+.props-event-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.props-event-empty {
+  padding: 10px 8px;
+  color: #777777;
+  font-style: italic;
+}
+
+.props-event-item {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 24px 28px 24px;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid #ededed;
+}
+
+.props-event-name {
+  border: 0;
+  background: transparent;
+  color: #0b5cad;
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.props-event-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #555555;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+}
+
+.props-event-mini {
+  height: 22px;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  background: #f8f8f8;
+  cursor: pointer;
+  padding: 0;
+}
+
+.props-event-modal {
+  width: 560px;
+}
+
+.props-event-form {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.props-event-form input,
+.props-event-form select {
+  min-width: 0;
+  border: 1px solid #adadad;
+  border-radius: 2px;
+  background: #ffffff;
+  padding: 4px 6px;
+}
+
+.props-event-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #444444;
+}
+
+.props-event-preview textarea {
+  height: 92px;
+  resize: vertical;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  padding: 6px;
+  font: 11px Consolas, "Courier New", monospace;
+  background: #f7f7f7;
+}
+
 /* page script code blocks */
 .props-code-block {
   padding: 4px 6px 8px;
