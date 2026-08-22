@@ -1,5 +1,5 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, MouseEvent as ReactMouseEvent } from 'react';
-import { useProjectStore, effectiveComponent } from '../../store/projectStore';
+import { useProjectStore, useCurrentPage, effectiveComponent } from '../../store/projectStore';
 import { resolveComponentHidden } from '../../model/responsive';
 import { styleFromProps, toReactStyle } from '../../model/styleFromProps';
 import { COMPONENT_MAP } from '../../model/componentDefs';
@@ -1280,8 +1280,9 @@ export default function ComponentView({ component }: { component: ComponentItem 
   const selectComponent = useProjectStore((s) => s.selectComponent);
   const setGeometry = useProjectStore((s) => s.setGeometry);
   const openContextMenu = useProjectStore((s) => s.openContextMenu);
+  const page = useCurrentPage();
 
-  const eff = effectiveComponent(component, breakpoints, activeBreakpointId);
+  const eff = effectiveComponent(component, breakpoints, activeBreakpointId, page.width);
   const props = eff.props;
   const selected = selectedId === component.id;
   const locked = !!component.locked;

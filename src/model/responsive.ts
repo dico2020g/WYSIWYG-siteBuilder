@@ -37,18 +37,37 @@ export function governingBreakpointId(
 export function resolveComponent(
   c: ComponentItem,
   breakpoints: Breakpoint[],
-  targetId: string | null
+  targetId: string | null,
+  baseWidth?: number
 ): ComponentItem {
   if (!targetId) return c;
+  const target = breakpoints.find((b) => b.id === targetId);
+  if (!target) return c;
   const gid = governingBreakpointId(c, breakpoints, targetId);
-  if (!gid) return c;
+  const sourceWidth = gid
+    ? breakpoints.find((b) => b.id === gid)?.maxWidth ?? target.maxWidth
+    : baseWidth || target.maxWidth;
+  const scale = sourceWidth > 0 ? target.maxWidth / sourceWidth : 1;
+  if (!gid) {
+    return {
+      ...c,
+      x: Math.round(c.x * scale),
+      y: Math.round(c.y * scale),
+      width: Math.round(c.width * scale),
+      height: Math.round(c.height * scale),
+    };
+  }
   const ov = c.overrides[gid];
+  const x = ov.x ?? c.x;
+  const y = ov.y ?? c.y;
+  const width = ov.width ?? c.width;
+  const height = ov.height ?? c.height;
   return {
     ...c,
-    x: ov.x ?? c.x,
-    y: ov.y ?? c.y,
-    width: ov.width ?? c.width,
-    height: ov.height ?? c.height,
+    x: Math.round(x * scale),
+    y: Math.round(y * scale),
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
     props: { ...c.props, ...(ov.props ?? {}) },
   };
 }

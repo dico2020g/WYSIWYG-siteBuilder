@@ -575,8 +575,8 @@ function buildStylesheet(project: Project): string {
       for (const cmp of page.components) {
         if (cmp.hidden) continue; // base-hidden components are excluded entirely
         const elId = elementId(cmp);
-        const resolved = resolveComponent(cmp, bps, bp.id);
-        const above = widerId ? resolveComponent(cmp, bps, widerId) : cmp;
+        const resolved = resolveComponent(cmp, bps, bp.id, page.width);
+        const above = widerId ? resolveComponent(cmp, bps, widerId, page.width) : cmp;
         const hidden = resolveComponentHidden(cmp, bps, bp.id);
         const aboveHidden = widerId ? resolveComponentHidden(cmp, bps, widerId) : !!cmp.hidden;
         if (hidden) {

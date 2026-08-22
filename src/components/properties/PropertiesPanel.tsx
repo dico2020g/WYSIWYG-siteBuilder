@@ -180,6 +180,7 @@ function ColorInput({ value, onCommit }: { value: string; onCommit: (v: string) 
 
 function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const comp = useProjectStore((s) => pageOf(s).components.find((c) => c.id === id));
+  const page = useCurrentPage();
   const bpId = useProjectStore((s) => s.activeBreakpointId);
   const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const bpName = useProjectStore((s) =>
@@ -191,7 +192,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const openCodeDialog = useProjectStore((s) => s.openCodeDialog);
 
   if (!comp) return null;
-  const eff = effectiveComponent(comp, breakpoints, bpId);
+  const eff = effectiveComponent(comp, breakpoints, bpId, page.width);
   const def = COMPONENT_MAP[comp.type];
 
   const hasOverride = !!(bpId && comp.overrides[bpId]);

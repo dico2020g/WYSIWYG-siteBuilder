@@ -156,9 +156,9 @@ function snap(v: number, size: number, enabled: boolean): number {
   return enabled ? Math.round(v / size) * size : Math.round(v);
 }
 
-function snapshotAtBreakpoint(c: ComponentItem, breakpoints: Breakpoint[], breakpointId: string): ComponentOverride {
+function snapshotAtBreakpoint(c: ComponentItem, breakpoints: Breakpoint[], breakpointId: string, baseWidth: number): ComponentOverride {
   return snapshotOverride(
-    resolveComponent(c, breakpoints, breakpointId),
+    resolveComponent(c, breakpoints, breakpointId, baseWidth),
     resolveComponentHidden(c, breakpoints, breakpointId)
   );
 }
@@ -315,7 +315,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
               // cascaded state so wider layers stop propagating to this element.
               const prev =
                 c.overrides[s.activeBreakpointId] ??
-                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId, p.width);
               return { ...c, overrides: { ...c.overrides, [s.activeBreakpointId]: { ...prev, ...g } } };
             }
             return { ...c, ...g };
@@ -323,7 +323,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           const changed = components.find((c) => c.id === id);
           const page = { ...p, components };
           if (!changed) return page;
-          const eff = resolveComponent(changed, s.project.breakpoints, s.activeBreakpointId);
+          const eff = resolveComponent(changed, s.project.breakpoints, s.activeBreakpointId, p.width);
           return fitPageHeight(page, eff.y + eff.height, s.gridSize, s.snapToGrid);
         })
       ),
@@ -337,7 +337,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             if (s.activeBreakpointId) {
               const prev =
                 c.overrides[s.activeBreakpointId] ??
-                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId, p.width);
               return {
                 ...c,
                 overrides: {
@@ -437,7 +437,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             if (s.activeBreakpointId) {
               const prev =
                 c.overrides[s.activeBreakpointId] ??
-                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId);
+                snapshotAtBreakpoint(c, s.project.breakpoints, s.activeBreakpointId, p.width);
               return {
                 ...c,
                 overrides: { ...c.overrides, [s.activeBreakpointId]: { ...prev, props: style } },
@@ -511,7 +511,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             const cur = new Set(c.hiddenIn ?? []);
             if (hidden) cur.add(breakpointId);
             else cur.delete(breakpointId);
-            const prev = c.overrides[breakpointId] ?? snapshotAtBreakpoint(c, s.project.breakpoints, breakpointId);
+            const prev = c.overrides[breakpointId] ?? snapshotAtBreakpoint(c, s.project.breakpoints, breakpointId, p.width);
             return {
               ...c,
               hiddenIn: [...cur],
@@ -550,9 +550,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     centerInPage: (id, axis, artboardWidth, pageHeight) => {
       const s = get();
-      const c = currentPage(s).components.find((c) => c.id === id);
+      const page = currentPage(s);
+      const c = page.components.find((c) => c.id === id);
       if (!c) return;
-      const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId);
+      const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, page.width);
       const geo: { x?: number; y?: number } = {};
       if (axis === 'h' || axis === 'both') geo.x = Math.round((artboardWidth - eff.width) / 2);
       if (axis === 'v' || axis === 'both') geo.y = Math.round((pageHeight - eff.height) / 2);
@@ -795,7 +796,8 @@ export function useCurrentPage(): Page {
 export function effectiveComponent(
   c: ComponentItem,
   breakpoints: Breakpoint[],
-  activeBreakpointId: string | null
+  activeBreakpointId: string | null,
+  baseWidth?: number
 ): ComponentItem {
-  return resolveComponent(c, breakpoints, activeBreakpointId);
+  return resolveComponent(c, breakpoints, activeBreakpointId, baseWidth);
 }
