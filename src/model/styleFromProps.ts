@@ -45,6 +45,14 @@ export function styleFromProps(props: Record<string, any>): Record<string, strin
   const z = num(props.zIndex);
   if (z !== undefined) css['z-index'] = String(z);
 
+  // Flexbox (Flexbox toggle on the Home tab / context menu)
+  if (str(props.display)) css['display'] = String(props.display);
+  if (str(props.flexDirection)) css['flex-direction'] = String(props.flexDirection);
+  if (str(props.flexWrap)) css['flex-wrap'] = String(props.flexWrap);
+  if (str(props.gap)) css['gap'] = String(props.gap);
+  if (str(props.justifyContent)) css['justify-content'] = String(props.justifyContent);
+  if (str(props.alignItems)) css['align-items'] = String(props.alignItems);
+
   // Effects
   const op = num(props.opacity);
   if (op !== undefined && op < 100) css['opacity'] = String(op / 100);

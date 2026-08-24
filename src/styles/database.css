@@ -275,10 +275,10 @@
 }
 .ds-node:hover { background: #f2f6fc; }
 .ds-node.sel { background: #dbeafe; }
-.ds-tw { width: 12px; color: #8a97a8; font-size: 10px; }
+.ds-tw { width: 18px; color: #667085; font-size: 15px; }
 .ds-dim { color: #9aa7b5; }
 .ds-err { color: #a01e1e; }
-.ds-field { cursor: default; font-size: 12px; }
+.ds-field { cursor: default; font-size: 14px; }
 .ds-count {
   background: #eef2f9;
   border-radius: 999px;
@@ -340,7 +340,7 @@
   color: #1f2d3d;
   border-bottom: 1px solid #e3e7ef;
 }
-.ds-tab-tree { flex: 1; overflow: auto; min-height: 0; padding: 4px 0; font-size: 13px; color: #24344a; }
+.ds-tab-tree { flex: 1; overflow: auto; min-height: 0; padding: 4px 0; font-size: 14px; color: #24344a; }
 .ds-search { padding: 6px 8px; border-top: 1px solid #e3e7ef; }
 .ds-search .db-input { width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 12px; }
 .ds-viewer { width: min(860px, 90vw); height: min(560px, 84vh); }

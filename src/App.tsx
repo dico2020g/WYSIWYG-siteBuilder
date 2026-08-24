@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import Ribbon from './components/ribbon/Ribbon';
-import Toolbox from './components/toolbox/Toolbox';
-import BlocksPanel from './components/toolbox/BlocksPanel';
+import ToolboxTabs from './components/toolbox/ToolboxTabs';
 import CanvasArea from './components/canvas/CanvasArea';
-import SiteManager from './components/sitemanager/SiteManager';
 import PropertiesPanel from './components/properties/PropertiesPanel';
 import StatusBar from './components/statusbar/StatusBar';
 import BreakpointDialogs from './components/dialogs/BreakpointDialogs';
 import CodeDialogs from './components/dialogs/CodeDialogs';
 import ConnectionsDialog from './components/dialogs/ConnectionsDialog';
 import AppPrompt from './components/dialogs/AppPrompt';
+import BoxDialog from './components/dialogs/BoxDialog';
 import { useProjectStore, useCurrentPage } from './store/projectStore';
 
 const LEFT_MIN = 160;
@@ -45,6 +44,8 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const st = useProjectStore.getState();
       const sel = st.selectedId;
+      const selectedIds = st.selectedIds.length > 0 ? st.selectedIds : sel ? [sel] : [];
+      const selectedGuideId = st.selectedGuideId;
 
       if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
@@ -71,14 +72,15 @@ export default function App() {
           e.preventDefault();
           const comps =
             st.project.pages.find((p) => p.id === st.currentPageId)?.components ?? [];
-          // single-selection model: select the top-most (last in stacking order)
-          if (comps.length > 0) st.selectComponent(comps[comps.length - 1].id);
+          st.selectComponents(comps.map((component) => component.id));
         }
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
-        st.deleteComponent(sel);
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedGuideId) {
+        st.deleteGuide(selectedGuideId);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
+        selectedIds.forEach((id) => st.deleteComponent(id));
       } else if (e.key === 'Escape') {
         if (st.contextMenu) {
           st.closeContextMenu();
@@ -131,8 +133,7 @@ export default function App() {
         {!activeDbPage && (
           <>
             <aside className="left-column" style={{ width: leftWidth, minWidth: leftWidth }}>
-              <Toolbox />
-              <BlocksPanel />
+              <ToolboxTabs />
             </aside>
             <div className="panel-resizer" onPointerDown={startPanelDrag('left')} />
           </>
@@ -142,7 +143,6 @@ export default function App() {
         </main>
         <div className="panel-resizer" onPointerDown={startPanelDrag('right')} />
         <aside className="right-column" style={{ width: rightWidth, minWidth: rightWidth }}>
-          <SiteManager />
           <PropertiesPanel />
         </aside>
       </div>
@@ -151,6 +151,7 @@ export default function App() {
       <CodeDialogs />
       <ConnectionsDialog />
       <AppPrompt />
+      <BoxDialog />
     </div>
   );
 }

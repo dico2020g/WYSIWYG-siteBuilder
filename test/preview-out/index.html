@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>index</title>
+<title>Untitled Page</title>
 <link rel="stylesheet" href="css/site.css">
 </head>
 <body>
-<div class="sb-page sb-page-index" id="page-index">
-<h1 id="c1" class="sb-cmp sb-heading">Heading</h1>
-</div>
+<div class="sb-fit sb-fit-index"><div class="sb-page sb-page-index" id="page-index">
+<div id="cmp_t1" class="sb-cmp sb-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.</div>
+</div></div>
+<script>
+(function(){var minW=480,baseH=1000;var fit=document.querySelector('.sb-fit-index'),pg=document.getElementById('page-index');if(!fit||!pg)return;function apply(){var w=window.innerWidth||document.documentElement.clientWidth;if(w<minW){var s=w/minW;pg.style.transform='scale('+s+')';pg.style.transformOrigin='top left';pg.style.width=minW+'px';pg.style.maxWidth='none';pg.style.margin='0';fit.style.height=(baseH*s)+'px';fit.style.overflow='hidden';document.body.style.overflowX='hidden';}else{pg.style.transform='';pg.style.width='';pg.style.maxWidth='';pg.style.margin='';fit.style.height='';fit.style.overflow='';document.body.style.overflowX='';}}window.addEventListener('resize',apply);apply();})();
+</script>
 </body>
 </html>

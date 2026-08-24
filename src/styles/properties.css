@@ -6,6 +6,12 @@
   border-top: 1px solid #dfe7f1;
 }
 
+.project-tab-wrap {
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .props-body {
   display: flex;
   flex-direction: column;
@@ -36,7 +42,7 @@
 .props-selector-id {
   color: #888888;
   font-weight: 400;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .props-search {
@@ -63,7 +69,7 @@
   padding: 0 10px;
   border: none;
   background: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
@@ -75,9 +81,15 @@
 }
 
 .props-group-arrow {
-  width: 10px;
-  color: #666666;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #475467;
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ---------- rows ---------- */
@@ -379,9 +391,10 @@
   padding: 4px 0 5px;
   border: none;
   background: transparent;
-  font-size: 12px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  font-size: 14px;
+  line-height: 1.25;
 }
 
 .props-tab:hover {

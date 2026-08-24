@@ -6,22 +6,32 @@ import type { PropField } from '../../model/componentDefs';
 import type { Project } from '../../model/types';
 import CodeEditor from '../code/CodeEditor';
 import DataSourceTree from '../dialogs/DataSourceBrowser';
+import SiteManager from '../sitemanager/SiteManager';
 
-type Tab = 'events' | 'props' | 'datasource';
+type Tab = 'project' | 'props' | 'events' | 'datasource';
 
 function pageOf(s: { project: Project; currentPageId: string }) {
   return s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0];
 }
 
 export default function PropertiesPanel() {
-  const [tab, setTab] = useState<Tab>('props');
+  const [tab, setTab] = useState<Tab>('project');
   const selectedId = useProjectStore((s) => s.selectedId);
   const currentPageId = useProjectStore((s) => s.currentPageId);
+
+  useEffect(() => {
+    const focusProperties = () => setTab('props');
+    window.addEventListener('sitebuilder:focus-properties', focusProperties);
+    return () => window.removeEventListener('sitebuilder:focus-properties', focusProperties);
+  }, []);
 
   return (
     <section className="panel props-panel">
       <div className="panel-header">
-        <span>Properties</span>
+        <span>{tab === 'project' ? 'Project Explorer' : tab === 'props' ? 'Properties' : tab === 'events' ? 'Events' : 'Data Source'}</span>
+      </div>
+      <div className="project-tab-wrap" style={{ display: tab === 'project' ? 'flex' : 'none' }}>
+        <SiteManager embedded />
       </div>
       {tab === 'props' && <PropsBody key={`props-${currentPageId}-${selectedId ?? 'page'}`} />}
       {tab === 'events' && <EventsBody key={`events-${currentPageId}-${selectedId ?? 'page'}`} />}
@@ -32,10 +42,10 @@ export default function PropertiesPanel() {
       <div className="props-tabs">
         <button
           type="button"
-          className={`props-tab${tab === 'events' ? ' active' : ''}`}
-          onClick={() => setTab('events')}
+          className={`props-tab${tab === 'project' ? ' active' : ''}`}
+          onClick={() => setTab('project')}
         >
-          Events
+          Project
         </button>
         <button
           type="button"
@@ -43,6 +53,13 @@ export default function PropertiesPanel() {
           onClick={() => setTab('props')}
         >
           More Properties
+        </button>
+        <button
+          type="button"
+          className={`props-tab${tab === 'events' ? ' active' : ''}`}
+          onClick={() => setTab('events')}
+        >
+          Events
         </button>
         <button
           type="button"
@@ -105,7 +122,7 @@ function matches(filter: string, label: string): boolean {
 }
 
 function GroupSection({ name, filter, children }: { name: string; filter: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const filtering = filter.trim() !== '';
   const expanded = open || filtering;
   return (
@@ -257,6 +274,8 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
 
   const contentFields = def?.fields ?? [];
   const contentRows = contentFields.map(renderField).filter(Boolean);
+  const advancedFields = COMMON_GROUPS.find((group) => group.group === 'Advanced')?.fields ?? [];
+  const advancedRows = advancedFields.map(renderField).filter(Boolean);
   const defaultName = def ? `${def.label}1` : comp.id;
 
   return (
@@ -280,6 +299,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
             />
           </Row>
         )}
+        {advancedRows}
       </GroupSection>
 
       {/* 1. Content — type-specific fields from the component def */}
@@ -296,8 +316,6 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
       {renderCommonGroup('Border')}
       {renderCommonGroup('Effects')}
 
-      {/* 8. Advanced */}
-      {renderCommonGroup('Advanced')}
     </div>
   );
 }

@@ -1,0 +1,25 @@
+/* Shared interaction geometry across the desktop UI. */
+:where(button, input, select, textarea) {
+  border-radius: 5px !important;
+  padding: 5px !important;
+}
+
+:where(
+  .ribbon-tab,
+  .ribbon-btn,
+  .props-tab,
+  .sidebar-tab,
+  .context-menu-item,
+  .bottom-tab
+) {
+  border-radius: 5px !important;
+  padding: 5px !important;
+}
+
+:where(.toolbox-item, .block-card, .tree-node) {
+  border-radius: 5px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  margin: 1px 5px;
+  width: calc(100% - 10px);
+}

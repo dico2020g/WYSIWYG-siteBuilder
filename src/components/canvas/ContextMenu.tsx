@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore, useCurrentPage } from '../../store/projectStore';
 import { COMPONENT_MAP } from '../../model/componentDefs';
-import { responsiveBaseWidth } from '../../model/responsive';
+import { resolveComponentHidden, responsiveBaseWidth } from '../../model/responsive';
 import { appAlert } from '../../actions/dialogs';
 import { appPrompt } from '../../actions/promptDialog';
+import { AppIcon } from '../icons/AppIcon';
 
 const MENU_WIDTH = 230;
-const SUBMENU_WIDTH = 150;
+const SUBMENU_WIDTH = 210;
 
 interface MenuItem {
+  /** AppIcon name */
   icon?: string;
   label: string;
   shortcut?: string;
   disabled?: boolean;
-  arrow?: boolean; // show ▸ (submenu indicator)
-  submenu?: 'center';
+  /** key into the submenus map — renders ▸ and a flyout on hover */
+  submenu?: string;
   onClick?: () => void;
 }
 
@@ -30,14 +32,14 @@ export default function ContextMenu() {
   const page = useCurrentPage();
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const [centerSubOpen, setCenterSubOpen] = useState(false);
+  const [openSub, setOpenSub] = useState<string | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   // Clamp to window edges once mounted (we know the rendered height then).
   useEffect(() => {
     if (!menu) {
       setPos(null);
-      setCenterSubOpen(false);
+      setOpenSub(null);
       return;
     }
     const el = rootRef.current;
@@ -74,6 +76,11 @@ export default function ContextMenu() {
   const id = menu.componentId;
   const comp = id ? page.components.find((c) => c.id === id) : null;
 
+  // The full active selection when the clicked component is part of it.
+  const selIds: string[] = id && st().selectedIds.includes(id) ? st().selectedIds : id ? [id] : [];
+  const selComps = page.components.filter((c) => selIds.includes(c.id));
+  const multi = selIds.length > 1;
+
   const run = (fn: () => void) => () => {
     fn();
     st().closeContextMenu();
@@ -82,8 +89,8 @@ export default function ContextMenu() {
   const activeBp = breakpoints.find((b) => b.id === activeBreakpointId) ?? null;
   const artboardWidth = activeBp ? activeBp.maxWidth : responsiveBaseWidth(page);
 
-  const doCenter = (axis: 'h' | 'v' | 'both') =>
-    run(() => id && st().centerInPage(id, axis, artboardWidth, page.height));
+  const centerSel = (axis: 'h' | 'v' | 'both') =>
+    run(() => selIds.forEach((cid) => st().centerInPage(cid, axis, artboardWidth, page.height)));
 
   const doRename = run(() => {
     if (!id || !comp) return;
@@ -124,66 +131,141 @@ export default function ContextMenu() {
     if (def) st().setGeometry(id, { width: def.defaultSize.width, height: def.defaultSize.height });
   });
 
+  const doSaveBlock = run(() => {
+    void (async () => {
+      const name = await appPrompt('Block name:', 'My Block');
+      if (name !== null) st().saveSelectionAsBlock(name);
+    })();
+  });
+
+  const doEasyBreakpoint = run(() => st().openBreakpointEditor({ mode: 'add' }));
+
+  const allHidden = selComps.length > 0 && selComps.every((c) => c.hidden);
+  const allHiddenInActiveBreakpoint =
+    !!activeBreakpointId &&
+    selComps.length > 0 &&
+    selComps.every((c) => resolveComponentHidden(c, breakpoints, activeBreakpointId));
+  const allLocked = selComps.length > 0 && selComps.every((c) => c.locked);
+  const allProtected = selComps.length > 0 && selComps.every((c) => c.props?.protected);
+  const allFlex = selComps.length > 0 && selComps.every((c) => c.props?.display === 'flex');
+  const canUngroup = selComps.some((c) => c.props?.groupId);
+  const canSplit = selComps.some((c) => Array.isArray(c.props?.mergedItems));
+
+  const submenus: Record<string, MenuItem[]> = {
+    select: [
+      {
+        icon: 'selectAll',
+        label: 'Select All',
+        shortcut: 'Ctrl+A',
+        disabled: page.components.length === 0,
+        onClick: run(() => st().selectComponents(page.components.map((c) => c.id))),
+      },
+      { icon: 'generic', label: 'Select None', onClick: run(() => st().selectComponent(null)) },
+      {
+        icon: 'invertSelection',
+        label: 'Invert Selection',
+        disabled: page.components.length === 0,
+        onClick: run(() =>
+          st().selectComponents(page.components.filter((c) => !selIds.includes(c.id)).map((c) => c.id))
+        ),
+      },
+    ],
+    center: [
+      { icon: 'centerPage', label: 'Horizontally', onClick: centerSel('h') },
+      { icon: 'centerPage', label: 'Vertically', onClick: centerSel('v') },
+      { icon: 'centerPage', label: 'Both', onClick: centerSel('both') },
+      {
+        icon: 'pageWidth',
+        label: 'Make width same as page width',
+        onClick: run(() => st().matchPageWidthSelection(artboardWidth)),
+      },
+    ],
+  };
+
   let entries: MenuEntry[];
   if (!comp) {
-    // Empty artboard: clipboard actions only.
+    // Empty artboard: clipboard + page actions.
     entries = [
-      { icon: '📋', label: 'Paste', shortcut: 'Ctrl+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(false)) },
-      { icon: '📌', label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(true)) },
+      { icon: 'paste', label: 'Paste', shortcut: 'Ctrl+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(false)) },
+      { icon: 'pasteInPlace', label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(true)) },
       'sep',
-      { icon: '</>', label: 'Page HTML / Code...', onClick: doPageHtml },
+      { icon: 'code', label: 'Page HTML / Code...', onClick: doPageHtml },
       'sep',
-      { icon: '⬚', label: 'Select All', shortcut: 'Ctrl+A', disabled: true },
+      {
+        icon: 'selectAll',
+        label: 'Select All',
+        shortcut: 'Ctrl+A',
+        disabled: page.components.length === 0,
+        onClick: run(() => st().selectComponents(page.components.map((c) => c.id))),
+      },
     ];
   } else {
     entries = [
-      { icon: '✂', label: 'Cut', shortcut: 'Ctrl+X', onClick: run(() => st().cutComponent(id!)) },
-      { icon: '⧉', label: 'Copy', shortcut: 'Ctrl+C', onClick: run(() => st().copyComponent(id!)) },
-      { icon: '📋', label: 'Paste', shortcut: 'Ctrl+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(false)) },
-      { icon: '📌', label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(true)) },
+      { icon: 'cut', label: 'Cut', shortcut: 'Ctrl+X', onClick: run(() => st().cutComponent(id!)) },
+      { icon: 'copy', label: 'Copy', shortcut: 'Ctrl+C', onClick: run(() => st().copyComponent(id!)) },
+      { icon: 'paste', label: 'Paste', shortcut: 'Ctrl+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(false)) },
+      { icon: 'pasteInPlace', label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', disabled: !clipboard, onClick: run(() => st().pasteComponent(true)) },
       'sep',
-      { icon: '🎨', label: 'Copy Style', onClick: run(() => st().copyStyle(id!)) },
-      { icon: '🖌', label: 'Paste Style', disabled: !styleClipboard, onClick: run(() => st().pasteStyle(id!)) },
+      { icon: 'copyStyle', label: 'Copy Style', onClick: run(() => st().copyStyle(id!)) },
+      { icon: 'pasteStyle', label: 'Paste Style', disabled: !styleClipboard, onClick: run(() => st().pasteStyle(id!)) },
       'sep',
-      { icon: '📱', label: 'Easy Breakpoint…', disabled: true },
-      { icon: '⬚', label: 'Select', arrow: true, disabled: true },
-      { icon: '⬚', label: 'Select All', shortcut: 'Ctrl+A', disabled: true },
+      { icon: 'selectAll', label: 'Select', submenu: 'select' },
+      { icon: 'easyBreakpoint', label: 'Easy Breakpoint…', onClick: doEasyBreakpoint },
       'sep',
-      { icon: '✎', label: 'Rename ID…', onClick: doRename },
-      { icon: '👯', label: 'Clone and Hide', shortcut: 'Ctrl+Shift+C', onClick: run(() => st().cloneComponent(id!, true)) },
-      { icon: comp.hidden ? '👁' : '🚫', label: comp.hidden ? 'Unhide' : 'Hide', shortcut: 'Ctrl+D', onClick: run(() => st().toggleHidden(id!)) },
+      { icon: 'edit', label: 'Rename ID…', onClick: doRename },
+      { icon: 'clone', label: 'Clone and Hide', shortcut: 'Ctrl+Shift+C', onClick: run(() => st().cloneComponent(id!, true)) },
       {
-        icon: '📱',
-        label: 'Hide in other Breakpoints',
-        disabled: breakpoints.length === 0,
-        onClick: run(() => st().toggleHiddenInOtherBreakpoints(id!, activeBreakpointId)),
+        icon: allHidden ? 'preview' : 'hide',
+        label: allHidden ? 'Unhide' : 'Hide',
+        shortcut: 'Ctrl+D',
+        onClick: run(() => selIds.forEach((cid) => st().setHidden(cid, !allHidden))),
       },
-      { icon: comp.locked ? '🔓' : '🔒', label: comp.locked ? 'Unlock' : 'Lock', shortcut: 'Ctrl+L', onClick: run(() => st().toggleLocked(id!)) },
+      {
+        icon: allHiddenInActiveBreakpoint ? 'preview' : 'easyBreakpoint',
+        label: allHiddenInActiveBreakpoint ? 'Show in this Breakpoint' : 'Hide in this Breakpoint',
+        disabled: !activeBreakpointId,
+        onClick: run(() => {
+          if (!activeBreakpointId) return;
+          selIds.forEach((cid) => st().setHiddenIn(cid, activeBreakpointId, !allHiddenInActiveBreakpoint));
+        }),
+      },
+      {
+        icon: allLocked ? 'unlockAll' : 'lock',
+        label: allLocked ? 'Unlock' : 'Lock',
+        shortcut: 'Ctrl+L',
+        onClick: run(() => st().lockSelection()),
+      },
+      {
+        icon: 'protected',
+        label: allProtected ? 'Unprotect Content' : 'Protect Content',
+        onClick: run(() => st().toggleProtectedSelection()),
+      },
       'sep',
-      { icon: '🔗', label: 'Merge Objects', disabled: true },
-      { icon: '▦', label: 'Flexbox…', disabled: true },
-      { icon: '↔', label: 'Margin…', disabled: true },
-      { icon: '↕', label: 'Padding…', disabled: true },
+      { icon: 'group', label: 'Group', disabled: selIds.length < 2, onClick: run(() => st().groupSelection()) },
+      { icon: 'ungroup', label: 'Ungroup', disabled: !canUngroup, onClick: run(() => st().ungroupSelection()) },
+      { icon: 'merge', label: 'Merge Objects', disabled: selIds.length < 2, onClick: run(() => st().mergeSelection()) },
+      { icon: 'split', label: 'Split Merged Object', disabled: !canSplit, onClick: run(() => st().splitSelection()) },
       'sep',
-      { icon: '⏫', label: 'Move to Front', shortcut: 'Ctrl+Num +', onClick: run(() => st().arrange(id!, 'front')) },
-      { icon: '🔼', label: 'Move Forward', onClick: run(() => st().arrange(id!, 'forward')) },
-      { icon: '🔽', label: 'Move Back', onClick: run(() => st().arrange(id!, 'backward')) },
-      { icon: '⏬', label: 'Move to Back', onClick: run(() => st().arrange(id!, 'back')) },
-      { icon: '🎯', label: 'Center in Page', submenu: 'center', arrow: true },
-      { icon: '↺', label: 'Restore Original Size', onClick: doRestoreSize },
+      { icon: 'flexbox', label: allFlex ? 'Remove Flexbox' : 'Flexbox', onClick: run(() => st().toggleFlexboxSelection()) },
+      { icon: 'margin', label: 'Margin…', onClick: run(() => st().openBoxDialog('margin')) },
+      { icon: 'padding', label: 'Padding…', onClick: run(() => st().openBoxDialog('padding')) },
       'sep',
-      { icon: '</>', label: 'Object HTML...', shortcut: 'Ctrl+H', onClick: doObjectHtml },
-      { icon: 'FX', label: 'Object Animations...', onClick: doObjectAnimation },
-      { icon: '</>', label: 'Page HTML / Code...', onClick: doPageHtml },
+      { icon: 'bringFront', label: 'Move to Front', onClick: run(() => st().arrangeSelection('front')) },
+      { icon: 'bringForward', label: 'Move Forward', onClick: run(() => st().arrangeSelection('forward')) },
+      { icon: 'sendBackward', label: 'Move Back', onClick: run(() => st().arrangeSelection('backward')) },
+      { icon: 'sendBack', label: 'Move to Back', onClick: run(() => st().arrangeSelection('back')) },
+      { icon: 'centerPage', label: 'Center in Page', submenu: 'center' },
+      { icon: 'restoreSize', label: 'Restore Original Size', disabled: multi, onClick: doRestoreSize },
       'sep',
-      { icon: '🧱', label: 'Save As Block…', disabled: true },
-      { icon: '🌙', label: 'Dark Color Scheme', arrow: true, disabled: true },
-      { icon: '🎭', label: 'Use Theme', disabled: true },
+      { icon: 'code', label: 'Object HTML...', shortcut: 'Ctrl+H', onClick: doObjectHtml },
+      { icon: 'animations', label: 'Object Animations...', onClick: doObjectAnimation },
+      { icon: 'code', label: 'Page HTML / Code...', onClick: doPageHtml },
       'sep',
-      { icon: '🗑', label: 'Delete', shortcut: 'Delete', onClick: run(() => st().deleteComponent(id!)) },
+      { icon: 'saveBlock', label: 'Save As Block…', onClick: doSaveBlock },
       'sep',
-      { icon: '⚙', label: 'Advanced', arrow: true, disabled: true },
-      { icon: '🔧', label: 'Object Properties…', shortcut: 'Alt+Enter', onClick: doProperties },
+      { icon: 'delete', label: multi ? `Delete ${selIds.length} Objects` : 'Delete', shortcut: 'Delete', onClick: run(() => st().deleteSelection()) },
+      'sep',
+      { icon: 'options', label: 'Object Properties…', shortcut: 'Alt+Enter', onClick: doProperties },
     ];
   }
 
@@ -199,32 +281,35 @@ export default function ContextMenu() {
       {entries.map((entry, i) => {
         if (entry === 'sep') return <div key={i} className="cm-sep" />;
         const cls = 'cm-item' + (entry.disabled ? ' disabled' : '');
-        const isCenter = entry.submenu === 'center';
+        const sub = entry.submenu ? submenus[entry.submenu] : null;
+        const subOpen = sub != null && openSub === entry.submenu;
         return (
           <div
             key={i}
-            className={cls + (isCenter && centerSubOpen ? ' hover' : '')}
-            onClick={entry.disabled || isCenter ? undefined : entry.onClick}
-            onMouseEnter={() => setCenterSubOpen(isCenter)}
+            className={cls + (subOpen ? ' hover' : '')}
+            onClick={entry.disabled || sub ? undefined : entry.onClick}
+            onMouseEnter={() => setOpenSub(entry.submenu ?? null)}
           >
-            <span className="cm-icon">{entry.icon ?? ''}</span>
+            <span className="cm-icon">{entry.icon ? <AppIcon name={entry.icon} size={13} /> : ''}</span>
             <span className="cm-label">{entry.label}</span>
             {entry.shortcut && <span className="cm-shortcut">{entry.shortcut}</span>}
-            {entry.arrow && <span className="cm-arrow">▸</span>}
-            {isCenter && centerSubOpen && (
-              <div className="context-submenu" style={subFlip ? { right: MENU_WIDTH } : { left: MENU_WIDTH }}>
-                <div className="cm-item" onClick={doCenter('h')}>
-                  <span className="cm-icon">↔</span>
-                  <span className="cm-label">Horizontally</span>
-                </div>
-                <div className="cm-item" onClick={doCenter('v')}>
-                  <span className="cm-icon">↕</span>
-                  <span className="cm-label">Vertically</span>
-                </div>
-                <div className="cm-item" onClick={doCenter('both')}>
-                  <span className="cm-icon">✛</span>
-                  <span className="cm-label">Both</span>
-                </div>
+            {sub && <span className="cm-arrow">▸</span>}
+            {sub && subOpen && (
+              <div
+                className="context-submenu"
+                style={{ width: SUBMENU_WIDTH, ...(subFlip ? { right: MENU_WIDTH } : { left: MENU_WIDTH }) }}
+              >
+                {sub.map((item, j) => (
+                  <div
+                    key={j}
+                    className={'cm-item' + (item.disabled ? ' disabled' : '')}
+                    onClick={item.disabled ? undefined : item.onClick}
+                  >
+                    <span className="cm-icon">{item.icon ? <AppIcon name={item.icon} size={13} /> : ''}</span>
+                    <span className="cm-label">{item.label}</span>
+                    {item.shortcut && <span className="cm-shortcut">{item.shortcut}</span>}
+                  </div>
+                ))}
               </div>
             )}
           </div>

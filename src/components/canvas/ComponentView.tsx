@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, MouseEvent as ReactMouseEvent } from 'react';
 import { useProjectStore, useCurrentPage, effectiveComponent } from '../../store/projectStore';
 import { resolveComponentHidden, responsiveBaseWidth } from '../../model/responsive';
 import { styleFromProps, toReactStyle } from '../../model/styleFromProps';
 import { COMPONENT_MAP } from '../../model/componentDefs';
 import type { ComponentItem } from '../../model/types';
+import { pickImage } from '../../actions/imagePicker';
 
 const HANDLES = [
   { dir: 'nw', cursor: 'nwse-resize' },
@@ -22,6 +24,40 @@ type HandleDir = (typeof HANDLES)[number]['dir'];
 const FORM_CONTROL_TYPES = [
   'textInput', 'password', 'email', 'number', 'tel', 'date', 'time', 'textarea', 'select', 'file', 'range',
 ];
+
+const EDITABLE_PROP_BY_TYPE: Record<string, string> = {
+  text: 'text',
+  heading: 'text',
+  paragraph: 'text',
+  button: 'text',
+  link: 'text',
+  icon: 'glyph',
+  submit: 'text',
+  reset: 'text',
+  checkbox: 'label',
+  radio: 'label',
+  textInput: 'placeholder',
+  password: 'placeholder',
+  email: 'placeholder',
+  number: 'placeholder',
+  tel: 'placeholder',
+  textarea: 'placeholder',
+  searchbox: 'placeholder',
+  panel: 'title',
+  dropdown: 'label',
+  tooltip: 'text',
+  badge: 'text',
+  alert: 'text',
+  logout: 'text',
+  addtocart: 'text',
+  cart: 'text',
+  checkout: 'text',
+};
+
+const IMAGE_PROP_BY_TYPE: Record<string, string> = {
+  image: 'src',
+  lightbox: 'src',
+};
 
 /* ============================================================ small helpers */
 
@@ -1272,41 +1308,94 @@ function renderInner(type: string, props: Record<string, any>, style: CSSPropert
 }
 export default function ComponentView({ component }: { component: ComponentItem }) {
   const selectedId = useProjectStore((s) => s.selectedId);
+  const selectedIds = useProjectStore((s) => s.selectedIds);
   const activeBreakpointId = useProjectStore((s) => s.activeBreakpointId);
   const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const zoom = useProjectStore((s) => s.zoom);
   const snapToGrid = useProjectStore((s) => s.snapToGrid);
   const gridSize = useProjectStore((s) => s.gridSize);
   const selectComponent = useProjectStore((s) => s.selectComponent);
+  const selectComponents = useProjectStore((s) => s.selectComponents);
+  const toggleComponentSelection = useProjectStore((s) => s.toggleComponentSelection);
   const setGeometry = useProjectStore((s) => s.setGeometry);
+  const updateProps = useProjectStore((s) => s.updateProps);
   const openContextMenu = useProjectStore((s) => s.openContextMenu);
   const page = useCurrentPage();
+  const [editingProp, setEditingProp] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  const eff = effectiveComponent(component, breakpoints, activeBreakpointId, responsiveBaseWidth(page));
+  const baseWidth = responsiveBaseWidth(page);
+  const eff = effectiveComponent(component, breakpoints, activeBreakpointId, baseWidth);
   const props = eff.props;
-  const selected = selectedId === component.id;
+  const selected = selectedIds.includes(component.id) || selectedId === component.id;
+  const multiSelected = selected && selectedIds.length > 1;
   const locked = !!component.locked;
   const hiddenNow = resolveComponentHidden(component, breakpoints, activeBreakpointId);
+
+  useEffect(() => {
+    if (!editingProp) return;
+    editorRef.current?.focus();
+    editorRef.current?.select();
+  }, [editingProp]);
+
+  useEffect(() => {
+    if (!editingProp) return;
+    const acceptOnOutsidePointer = (event: PointerEvent) => {
+      const editor = editorRef.current;
+      if (editor && !editor.contains(event.target as Node)) {
+        updateProps(component.id, { [editingProp]: editingValue });
+        setEditingProp(null);
+      }
+    };
+    document.addEventListener('pointerdown', acceptOnOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', acceptOnOutsidePointer, true);
+  }, [component.id, editingProp, editingValue, updateProps]);
 
   const snapVal = (v: number): number =>
     snapToGrid ? Math.round(v / gridSize) * gridSize : Math.round(v);
 
   const propStyle = toReactStyle(styleFromProps(props)) as CSSProperties;
   const isFormControl = FORM_CONTROL_TYPES.includes(component.type);
+  // Rotate/flip (props.transform) applies to the whole component box, matching
+  // the exporter where styleFromProps lands on the root element.
+  const wrapperTransform = propStyle.transform as string | undefined;
+  if (wrapperTransform) delete propStyle.transform;
 
   const startDrag = (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    selectComponent(component.id);
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      toggleComponentSelection(component.id);
+      return;
+    }
+    // Grouped components select and drag together (plain click only).
+    const groupId = component.props?.groupId ? String(component.props.groupId) : null;
+    const groupIds = groupId
+      ? page.components.filter((c) => c.props?.groupId && String(c.props.groupId) === groupId).map((c) => c.id)
+      : null;
+    let dragIds = selectedIds.includes(component.id) ? selectedIds : [component.id];
+    if (groupIds && !groupIds.every((gid) => dragIds.includes(gid))) {
+      selectComponents(groupIds);
+      dragIds = groupIds;
+    } else if (!selectedIds.includes(component.id)) {
+      selectComponent(component.id);
+    }
     if (locked) return; // locked: selectable but not movable
     const startClientX = e.clientX;
     const startClientY = e.clientY;
-    const origX = eff.x;
-    const origY = eff.y;
+    const startPositions = page.components
+      .filter((c) => dragIds.includes(c.id) && !c.locked)
+      .map((c) => {
+        const cEff = c.id === component.id ? eff : effectiveComponent(c, breakpoints, activeBreakpointId, baseWidth);
+        return { id: c.id, x: cEff.x, y: cEff.y };
+      });
     const onMove = (ev: PointerEvent) => {
       const dx = (ev.clientX - startClientX) / zoom;
       const dy = (ev.clientY - startClientY) / zoom;
-      setGeometry(component.id, { x: snapVal(origX + dx), y: snapVal(origY + dy) });
+      startPositions.forEach((pos) => {
+        setGeometry(pos.id, { x: snapVal(pos.x + dx), y: snapVal(pos.y + dy) });
+      });
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
@@ -1350,17 +1439,49 @@ export default function ComponentView({ component }: { component: ComponentItem 
 
   const onClick = (e: ReactMouseEvent) => e.stopPropagation();
 
+  const finishEditing = (commit: boolean) => {
+    if (commit && editingProp) updateProps(component.id, { [editingProp]: editingValue });
+    setEditingProp(null);
+  };
+
+  const onDoubleClick = async (e: ReactMouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (locked) return;
+    selectComponent(component.id);
+
+    const imageProp = IMAGE_PROP_BY_TYPE[component.type];
+    if (imageProp) {
+      const picked = await pickImage();
+      if (picked) {
+        const patch: Record<string, any> = { [imageProp]: picked.dataUrl };
+        if (component.type === 'image' && (!props.alt || props.alt === 'image')) patch.alt = picked.name;
+        updateProps(component.id, patch);
+      }
+      return;
+    }
+
+    const prop = EDITABLE_PROP_BY_TYPE[component.type];
+    if (!prop) return;
+    setEditingValue(String(props[prop] ?? ''));
+    setEditingProp(prop);
+  };
+
   const onContextMenu = (e: ReactMouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    selectComponent(component.id);
+    // Keep an existing multi-selection when right-clicking one of its members.
+    if (!selectedIds.includes(component.id)) selectComponent(component.id);
     openContextMenu({ x: e.clientX, y: e.clientY, componentId: component.id });
   };
 
   return (
     <div
       className={
-        'canvas-component' + (selected ? ' selected' : '') + (hiddenNow ? ' hidden-comp' : '')
+        'canvas-component' +
+        (selected ? ' selected' : '') +
+        (multiSelected ? ' multi-selected' : '') +
+        (hiddenNow ? ' hidden-comp' : '')
       }
       style={{
         left: eff.x,
@@ -1368,15 +1489,45 @@ export default function ComponentView({ component }: { component: ComponentItem 
         width: eff.width,
         height: eff.height,
         zIndex: props.zIndex !== undefined && props.zIndex !== '' ? Number(props.zIndex) : undefined,
+        transform: wrapperTransform,
+        transformOrigin: wrapperTransform ? 'center center' : undefined,
       }}
       onPointerDown={startDrag}
       onClick={onClick}
+      onDoubleClick={(e) => void onDoubleClick(e)}
       onContextMenu={onContextMenu}
     >
       <div className="cv-content" style={isFormControl ? undefined : propStyle}>
         {renderInner(component.type, props, propStyle)}
       </div>
+      {editingProp && (
+        <textarea
+          ref={editorRef}
+          className="canvas-inline-editor"
+          value={editingValue}
+          aria-label={`Edit ${editingProp}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onBlur={() => finishEditing(true)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              finishEditing(false);
+            } else if (
+              e.key === 'Enter' &&
+              (e.ctrlKey || e.metaKey || !['text', 'paragraph', 'alert'].includes(component.type))
+            ) {
+              e.preventDefault();
+              finishEditing(true);
+            }
+          }}
+        />
+      )}
       {selected && locked && <div className="cv-lock">🔒</div>}
+      {component.props?.protected && <div className="cv-protected" title="Protected content (excluded from export)">🛈</div>}
       {selected &&
         !locked &&
         HANDLES.map((h) => (

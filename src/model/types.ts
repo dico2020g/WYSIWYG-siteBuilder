@@ -30,6 +30,21 @@ export interface ComponentItem {
   hiddenIn?: string[];           // breakpoint ids where the component is hidden
 }
 
+export interface GuideOverride {
+  position?: number;
+  start?: number;
+  length?: number;
+}
+
+export interface GuideItem {
+  id: string;
+  orientation: 'horizontal' | 'vertical';
+  position: number;              // horizontal = y, vertical = x
+  start: number;                 // horizontal = x start, vertical = y start
+  length: number;
+  overrides?: Record<string, GuideOverride>;
+}
+
 export interface Page {
   id: string;
   name: string;      // file/menu name, e.g. "index"
@@ -38,6 +53,7 @@ export interface Page {
   height: number;
   backgroundColor: string;
   components: ComponentItem[];
+  guides?: GuideItem[];
   pageCode: string;  // custom JS appended to page
   headCode: string;  // custom HTML for <head> (framework script tags etc.)
   bodyStartCode?: string; // custom HTML immediately after <body>
@@ -101,6 +117,13 @@ export interface DatabaseState {
   api: ApiConfig
 }
 
+export interface CustomBlock {
+  id: string;
+  name: string;
+  /** Deep-cloned components, positions normalized relative to their bounding box. */
+  items: ComponentItem[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -109,6 +132,7 @@ export interface Project {
   /** 'smaller' → @media (max-width: N), 'larger' → @media (min-width: N) */
   breakpointMode: 'smaller' | 'larger';
   database?: DatabaseState;
+  customBlocks?: CustomBlock[];
 }
 
 export interface ExportFile {

@@ -3,13 +3,13 @@
 html, body, #root { height: 100%; overflow: hidden; }
 body {
   font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   color: #172033;
   user-select: none;
   background: #111827;
 }
-button { font-family: inherit; }
-input, select, textarea { font-family: inherit; font-size: 12px; }
+button { font-family: inherit; font-size: 14px; }
+input, select, textarea { font-family: inherit; font-size: 14px; }
 
 .app-shell {
   display: flex;
@@ -102,7 +102,7 @@ input, select, textarea { font-family: inherit; font-size: 12px; }
 .panel-header {
   display: flex; align-items: center; justify-content: space-between;
   min-height: 32px;
-  padding: 0 10px; font-weight: 600; font-size: 13px;
+  padding: 0 10px; font-weight: 600; font-size: 15px;
   background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
   border-bottom: 1px solid #dce3ec;
   color: #162033;

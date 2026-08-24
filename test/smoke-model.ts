@@ -1,6 +1,7 @@
 // Smoke test for model/store/exporter. Bundled with esbuild, run with node.
 import { useProjectStore, effectiveComponent } from '../src/store/projectStore';
 import { exportSite } from '../src/export/exportHtml';
+import { createProject } from '../src/model/factory';
 import { responsiveBaseWidth } from '../src/model/responsive';
 
 let failures = 0;
@@ -105,12 +106,41 @@ assert(names.includes('index.html') && names.includes('about.html'), 'export emi
 const css = files.find((f) => f.name === 'css/site.css')!.content;
 assert(css.includes('@media (max-width: 360px)'), 'css has custom breakpoint media query');
 assert(css.includes('@media (max-width: 768px)'), 'css has default tablet breakpoint');
-assert(css.includes(`width: ${wideBaseWidth}px`), 'exported page width covers default design extent');
+assert(css.includes(`width: 100%; max-width: ${wideBaseWidth}px`), 'desktop page is fluid and capped at the default design extent');
 assert(css.includes(`#${id}`), 'css contains component rule');
+assert(css.includes('html, body { margin: 0; width: 100%; max-width: 100%; overflow-x: hidden; }'), 'exported document never exposes horizontal overflow');
+assert(css.includes('.sb-fit { width: 100%; max-width: 100%; overflow-x: hidden; }'), 'responsive wrapper is constrained to every screen width');
 const html = files.find((f) => f.name === 'index.html')!.content;
 assert(html.includes('onclick="alert(&quot;hi&quot;)"'), 'event handler exported escaped');
 assert(html.includes('<button'), 'button exported');
 assert(html.includes('css/site.css'), 'html links stylesheet');
+assert(!html.includes('scaleFitScript') && !html.includes('var baseW='), 'responsive export does not use JavaScript scaling');
+assert(css.includes(`@media (max-width: ${wideBaseWidth}px)`), 'default layout becomes fluid below its design width');
+assert(new RegExp(`#${scaleId} \\{[^}]*left: [0-9.]+%[^}]*width: [0-9.]+%`).test(css), 'fluid layout exports percentage component geometry');
+
+const noBreakpointProject = createProject('NoBreakpoints');
+noBreakpointProject.breakpoints = [];
+noBreakpointProject.pages[0].width = 1120;
+const noBreakpointFiles = exportSite(noBreakpointProject);
+const noBreakpointCss = noBreakpointFiles.find((f) => f.name === 'css/site.css')!.content;
+const noBreakpointHtml = noBreakpointFiles.find((f) => f.name === 'index.html')!.content;
+assert(noBreakpointCss.includes('@media (max-width: 1120px)'), 'fluid media rule is exported without named breakpoints');
+assert(noBreakpointCss.includes('aspect-ratio: 1120 / 1000'), 'fluid page height stays proportional without breakpoints');
+assert(!noBreakpointHtml.includes('var baseW='), 'no-breakpoint export remains CSS-only');
+
+const exactWidthProject = createProject('ExactWidth');
+exactWidthProject.breakpoints = [];
+exactWidthProject.pages[0].width = 1280;
+const exactWidthCss = exportSite(exactWidthProject).find((f) => f.name === 'css/site.css')!.content;
+assert(exactWidthCss.includes('@media (max-width: 1280px)'), '1280 layout has an exact max-width fluid rule');
+assert(exactWidthCss.includes('max-width: 100%'), 'exact-width layout is constrained to usable viewport width');
+assert(exactWidthCss.includes('width: 100%; max-width: 1280px'), 'desktop rule cannot exceed its 1280 design width');
+
+const largerProject = createProject('LargerMode');
+largerProject.breakpointMode = 'larger';
+const largerCss = exportSite(largerProject).find((f) => f.name === 'css/site.css')!.content;
+assert(largerCss.includes('@media (max-width: 768px)') && largerCss.includes('@media (max-width: 480px)'), 'all named breakpoints export as max-width media rules');
+assert(!largerCss.includes('@media (min-width:'), 'responsive export no longer emits min-width breakpoint rules');
 
 // auto-grow: dragging beyond canvas bottom stretches page height
 const hBefore = useProjectStore.getState().project.pages[0].height;
@@ -196,14 +226,12 @@ assert(findC(id2)!.locked === true, 'toggleLocked locks');
 s.toggleLocked(id2);
 assert(!findC(id2)!.locked, 'toggleLocked unlocks');
 
-// hide in other breakpoints (toggle)
-st = useProjectStore.getState();
-const otherBps = st.project.breakpoints.map((b) => b.id).filter((b) => b !== bpId);
-s.toggleHiddenInOtherBreakpoints(id2, bpId);
+// hide in this breakpoint only
+s.setHiddenIn(id2, bpId, true);
 const hin = findC(id2)!.hiddenIn ?? [];
-assert(otherBps.length > 0 && otherBps.every((b) => hin.includes(b)) && !hin.includes(bpId), 'hide in other breakpoints adds all other bp ids');
-s.toggleHiddenInOtherBreakpoints(id2, bpId);
-assert((findC(id2)!.hiddenIn ?? []).length === 0, 'toggling again removes them');
+assert(hin.length === 1 && hin.includes(bpId), 'hide in this breakpoint affects only the active breakpoint');
+s.setHiddenIn(id2, bpId, false);
+assert(!(findC(id2)!.hiddenIn ?? []).includes(bpId), 'show in this breakpoint removes its hidden flag');
 
 // centerInPage (page.width=970, page.height=800, text defaultSize 250x60)
 s.centerInPage(id2, 'both', 970, 800);
@@ -223,12 +251,12 @@ assert(!cssH.includes(`#${id2}`), 'exporter omits css for hidden component');
 assert(!htmlH.includes(`id="${id2}"`), 'exporter omits html for hidden component');
 s.toggleHidden(id2);
 
-// hiddenIn emits display:none inside each matching media query
-s.toggleHiddenInOtherBreakpoints(id2, null); // active = Default → all breakpoints
+// hiddenIn emits display:none inside its matching media query
+s.setHiddenIn(id2, bpId, true);
 const cssHI = exportSite(useProjectStore.getState().project).find((f) => f.name === 'css/site.css')!.content;
 assert(cssHI.includes(`#${id2} { display: none }`), 'hiddenIn emits display:none in media queries');
 assert(cssHI.includes(`#${id2} { position: absolute`), 'base rule kept for breakpoint-hidden component');
-s.toggleHiddenInOtherBreakpoints(id2, null); // restore
+s.setHiddenIn(id2, bpId, false); // restore
 
 // delete page
 s.deletePage(pageId);

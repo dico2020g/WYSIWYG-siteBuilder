@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import type { ComponentItem, ComponentOverride, DatabaseState, DbConnection, DbSqlObject, DbTable, Page, Project, Breakpoint } from '../model/types';
+import type { ComponentItem, ComponentOverride, DatabaseState, DbConnection, DbSqlObject, DbTable, Page, Project, Breakpoint, GuideItem, GuideOverride } from '../model/types';
 import { createDatabaseState, createPage, createProject, sortBreakpoints, uid } from '../model/factory';
 import { COMPONENT_MAP } from '../model/componentDefs';
 import { resolveComponent, resolveComponentHidden, responsiveBaseWidth, snapshotOverride } from '../model/responsive';
+import { transformPatch } from '../model/transform';
+import { mergedBlockHtml } from '../export/exportHtml';
 
 export type CanvasTool = 'pointer' | string; // 'pointer' or a component type being placed
 
@@ -34,6 +36,8 @@ interface ProjectState {
   project: Project;
   currentPageId: string;
   selectedId: string | null;
+  selectedIds: string[];
+  selectedGuideId: string | null;
   activeBreakpointId: string | null; // null = Default (base)
   zoom: number; // 0.25 .. 2
   snapToGrid: boolean;
@@ -64,6 +68,8 @@ interface ProjectState {
   setTool: (tool: CanvasTool) => void;
   addComponent: (type: string, x: number, y: number) => string | null;
   selectComponent: (id: string | null) => void;
+  selectComponents: (ids: string[]) => void;
+  toggleComponentSelection: (id: string) => void;
   deleteComponent: (id: string) => void;
   /** patch geometry (x/y/width/height) — writes to breakpoint override when one is active */
   setGeometry: (id: string, geo: { x?: number; y?: number; width?: number; height?: number }) => void;
@@ -89,9 +95,43 @@ interface ProjectState {
   /** Explicit setter variants for checkbox-style UIs (Responsive group). */
   setHidden: (id: string, hidden: boolean) => void;
   setHiddenIn: (id: string, breakpointId: string, hidden: boolean) => void;
-  toggleHiddenInOtherBreakpoints: (id: string, activeBreakpointId: string | null) => void;
   toggleLocked: (id: string) => void;
   centerInPage: (id: string, axis: 'h' | 'v' | 'both', artboardWidth: number, pageHeight: number) => void;
+
+  // selection operations (Home tab / context menu) — act on selectedIds (or selectedId)
+  arrangeSelection: (op: 'front' | 'back' | 'forward' | 'backward') => void;
+  deleteSelection: () => void;
+  alignSelection: (mode: 'left' | 'centerH' | 'right' | 'top' | 'middleV' | 'bottom', artboardWidth: number, pageHeight: number) => void;
+  matchSizeSelection: (mode: 'width' | 'height' | 'both') => void;
+  distributeSelection: (axis: 'h' | 'v') => void;
+  scaleSelection: (percent: number) => void;
+  rotateSelection: (deltaDeg: number) => void;
+  flipSelection: (axis: 'h' | 'v') => void;
+  matchPageWidthSelection: (artboardWidth: number) => void;
+  groupSelection: () => void;
+  ungroupSelection: () => void;
+  mergeSelection: () => void;
+  splitSelection: () => void;
+  saveSelectionAsBlock: (name: string) => void;
+  insertBlock: (blockId: string) => void;
+  deleteBlock: (blockId: string) => void;
+  lockSelection: () => void;
+  lockAll: () => void;
+  unlockAll: () => void;
+  toggleProtectedSelection: () => void;
+  toggleFlexboxSelection: () => void;
+  setBoxSelection: (kind: 'margin' | 'padding', value: string) => void;
+
+  // margin/padding dialog
+  boxDialog: null | { kind: 'margin' | 'padding' };
+  openBoxDialog: (kind: 'margin' | 'padding') => void;
+  closeBoxDialog: () => void;
+
+  // guide actions
+  selectGuide: (id: string | null) => void;
+  addGuide: (guide: Omit<GuideItem, 'id' | 'overrides'>) => string;
+  updateGuide: (id: string, patch: GuideOverride) => void;
+  deleteGuide: (id: string) => void;
 
   // database workspace — shown as closable tabs next to the page design tabs
   openDbPages: DatabasePage[]; // db tabs currently open in the tab strip
@@ -142,6 +182,12 @@ function currentPage(state: ProjectState): Page {
   return page ?? state.project.pages[0];
 }
 
+/** Active selection as an id list: selectedIds, falling back to selectedId. */
+function selectionIds(state: ProjectState): string[] {
+  if (state.selectedIds.length > 0) return state.selectedIds;
+  return state.selectedId ? [state.selectedId] : [];
+}
+
 function withPage(state: ProjectState, fn: (page: Page) => Page): Partial<ProjectState> {
   return {
     project: {
@@ -163,6 +209,44 @@ function snapshotAtBreakpoint(c: ComponentItem, breakpoints: Breakpoint[], break
   );
 }
 
+function guideGoverningBreakpointId(guide: GuideItem, breakpoints: Breakpoint[], targetId: string): string | null {
+  const target = breakpoints.find((b) => b.id === targetId);
+  if (!target) return null;
+  let best: Breakpoint | null = null;
+  for (const b of breakpoints) {
+    if (b.maxWidth < target.maxWidth) continue;
+    if (!guide.overrides?.[b.id]) continue;
+    if (!best || b.maxWidth < best.maxWidth) best = b;
+  }
+  return best?.id ?? null;
+}
+
+function resolveGuide(guide: GuideItem, breakpoints: Breakpoint[], targetId: string | null, baseWidth: number): GuideItem {
+  if (!targetId) return guide;
+  const target = breakpoints.find((b) => b.id === targetId);
+  if (!target) return guide;
+  const gid = guideGoverningBreakpointId(guide, breakpoints, targetId);
+  const sourceWidth = gid ? breakpoints.find((b) => b.id === gid)?.maxWidth ?? target.maxWidth : baseWidth;
+  const scale = sourceWidth > 0 ? target.maxWidth / sourceWidth : 1;
+  const ov = gid ? guide.overrides?.[gid] : undefined;
+  return {
+    ...guide,
+    position: Math.round((ov?.position ?? guide.position) * scale),
+    start: Math.round((ov?.start ?? guide.start) * scale),
+    length: Math.round((ov?.length ?? guide.length) * scale),
+  };
+}
+
+function snapshotGuideAtBreakpoint(
+  guide: GuideItem,
+  breakpoints: Breakpoint[],
+  breakpointId: string,
+  baseWidth: number
+): GuideOverride {
+  const resolved = resolveGuide(guide, breakpoints, breakpointId, baseWidth);
+  return { position: resolved.position, start: resolved.start, length: resolved.length };
+}
+
 const PAGE_BOTTOM_PADDING = 50;
 
 /** Grow page.height so it covers `bottom` (+ padding). Never shrinks. */
@@ -178,6 +262,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     project: initial,
     currentPageId: initial.pages[0].id,
     selectedId: null,
+    selectedIds: [],
+    selectedGuideId: null,
     activeBreakpointId: null,
     zoom: 1,
     snapToGrid: true,
@@ -191,6 +277,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     contextMenu: null,
     clipboard: null,
     styleClipboard: null,
+    boxDialog: null,
     openDbPages: [],
     activeDbPage: null,
     connectionsOpen: false,
@@ -199,7 +286,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     newProject: () => {
       const p = createProject();
-      set({ project: p, currentPageId: p.pages[0].id, selectedId: null, activeBreakpointId: null, filePath: null, dirty: false });
+      set({ project: p, currentPageId: p.pages[0].id, selectedId: null, selectedIds: [], selectedGuideId: null, activeBreakpointId: null, filePath: null, dirty: false });
     },
     loadProject: (project, filePath) =>
       set({
@@ -211,6 +298,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         },
         currentPageId: project.pages[0]?.id ?? '',
         selectedId: null,
+        selectedIds: [],
+        selectedGuideId: null,
         activeBreakpointId: null,
         filePath,
         dirty: false,
@@ -229,6 +318,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           project: { ...s.project, pages: [...s.project.pages, page] },
           currentPageId: page.id,
           selectedId: null,
+          selectedIds: [],
+          selectedGuideId: null,
           dirty: true,
         };
       }),
@@ -245,6 +336,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           project: { ...s.project, pages },
           currentPageId: s.currentPageId === pageId ? pages[0].id : s.currentPageId,
           selectedId: null,
+          selectedIds: [],
+          selectedGuideId: null,
           dirty: true,
         };
       }),
@@ -259,9 +352,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         const idx = s.project.pages.findIndex((p) => p.id === pageId);
         const pages = [...s.project.pages];
         pages.splice(idx + 1, 0, clone);
-        return { project: { ...s.project, pages }, currentPageId: clone.id, selectedId: null, dirty: true };
+        return { project: { ...s.project, pages }, currentPageId: clone.id, selectedId: null, selectedIds: [], selectedGuideId: null, dirty: true };
       }),
-    selectPage: (pageId) => set({ currentPageId: pageId, selectedId: null, activeDbPage: null }),
+    selectPage: (pageId) => set({ currentPageId: pageId, selectedId: null, selectedIds: [], selectedGuideId: null, activeDbPage: null }),
     updatePageProps: (pageId, patch) =>
       set((s) => ({
         project: { ...s.project, pages: s.project.pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)) },
@@ -289,15 +382,29 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           fitPageHeight({ ...p, components: [...p.components, comp] }, comp.y + comp.height, st.gridSize, st.snapToGrid)
         ),
         selectedId: comp.id,
+        selectedIds: [comp.id],
+        selectedGuideId: null,
         tool: 'pointer',
       }));
       return comp.id;
     },
-    selectComponent: (id) => set({ selectedId: id }),
+    selectComponent: (id) => set({ selectedId: id, selectedIds: id ? [id] : [], selectedGuideId: null }),
+    selectComponents: (ids) => {
+      const unique = [...new Set(ids)].filter(Boolean);
+      set({ selectedIds: unique, selectedId: unique[0] ?? null, selectedGuideId: null });
+    },
+    toggleComponentSelection: (id) =>
+      set((s) => {
+        const selected = s.selectedIds.includes(id)
+          ? s.selectedIds.filter((selectedId) => selectedId !== id)
+          : [...s.selectedIds, id];
+        return { selectedIds: selected, selectedId: selected[0] ?? null, selectedGuideId: null };
+      }),
     deleteComponent: (id) =>
       set((s) => ({
         ...withPage(s, (p) => ({ ...p, components: p.components.filter((c) => c.id !== id) })),
         selectedId: s.selectedId === id ? null : s.selectedId,
+        selectedIds: s.selectedIds.filter((selectedId) => selectedId !== id),
       })),
 
     setGeometry: (id, geo) =>
@@ -399,6 +506,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             ),
           },
           selectedId: s.selectedId === id ? null : s.selectedId,
+          selectedIds: s.selectedIds.filter((selectedId) => selectedId !== id),
           dirty: true,
         };
       }),
@@ -417,6 +525,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           fitPageHeight({ ...p, components: [...p.components, comp] }, comp.y + comp.height, st.gridSize, st.snapToGrid)
         ),
         selectedId: comp.id,
+        selectedIds: [comp.id],
+        selectedGuideId: null,
       }));
       return comp.id;
     },
@@ -460,6 +570,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           components: p.components.map((c) => (c.id === id ? { ...c, id: trimmed } : c)),
         })),
         selectedId: st.selectedId === id ? trimmed : st.selectedId,
+        selectedIds: st.selectedIds.map((selectedId) => (selectedId === id ? trimmed : selectedId)),
         contextMenu:
           st.contextMenu?.componentId === id ? { ...st.contextMenu, componentId: trimmed } : st.contextMenu,
       }));
@@ -483,6 +594,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           return fitPageHeight({ ...p, components: [...components, clone] }, clone.y + clone.height, st.gridSize, st.snapToGrid);
         }),
         selectedId: clone.id,
+        selectedIds: [clone.id],
+        selectedGuideId: null,
       }));
       return clone.id;
     },
@@ -522,25 +635,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }))
       ),
 
-    toggleHiddenInOtherBreakpoints: (id, activeBreakpointId) =>
-      set((s) =>
-        withPage(s, (p) => ({
-          ...p,
-          components: p.components.map((c) => {
-            if (c.id !== id) return c;
-            const others = s.project.breakpoints
-              .map((b) => b.id)
-              .filter((bid) => bid !== activeBreakpointId);
-            const cur = c.hiddenIn ?? [];
-            const allPresent = others.length > 0 && others.every((bid) => cur.includes(bid));
-            const hiddenIn = allPresent
-              ? cur.filter((bid) => !others.includes(bid))
-              : [...new Set([...cur, ...others])];
-            return { ...c, hiddenIn };
-          }),
-        }))
-      ),
-
     toggleLocked: (id) =>
       set((s) =>
         withPage(s, (p) => ({
@@ -560,6 +654,426 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (axis === 'v' || axis === 'both') geo.y = Math.round((pageHeight - eff.height) / 2);
       s.setGeometry(id, geo);
     },
+
+    // ---- selection operations ----
+
+    arrangeSelection: (op) => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      const page = currentPage(s);
+      // Apply in stacking order so multi-moves keep relative order and don't
+      // double-step: forward → top-most first, backward/front/back as listed.
+      const ordered = page.components.filter((c) => ids.includes(c.id)).map((c) => c.id);
+      const seq = op === 'forward' || op === 'back' ? [...ordered].reverse() : ordered;
+      for (const id of seq) get().arrange(id, op);
+    },
+
+    deleteSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      set((st) => ({
+        ...withPage(st, (p) => ({ ...p, components: p.components.filter((c) => !ids.includes(c.id)) })),
+        selectedId: null,
+        selectedIds: [],
+      }));
+    },
+
+    alignSelection: (mode, artboardWidth, pageHeight) => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const effs = page.components
+        .filter((c) => ids.includes(c.id))
+        .map((c) => ({ id: c.id, eff: effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth) }));
+      if (!effs.length) return;
+      // Multi-selection: the first selected component is the stationary pivot.
+      // Single selection: align within the page.
+      const single = effs.length === 1;
+      const anchorId = ids.includes(s.selectedId ?? '') ? s.selectedId! : ids[0];
+      const anchor = effs.find((e) => e.id === anchorId) ?? effs[0];
+      const minX = single ? 0 : anchor.eff.x;
+      const maxX = single ? artboardWidth : anchor.eff.x + anchor.eff.width;
+      const minY = single ? 0 : anchor.eff.y;
+      const maxY = single ? pageHeight : anchor.eff.y + anchor.eff.height;
+      for (const { id, eff } of effs) {
+        if (!single && id === anchor.id) continue; // pivot stays put
+        const geo: { x?: number; y?: number } = {};
+        if (mode === 'left') geo.x = Math.round(minX);
+        else if (mode === 'centerH') geo.x = Math.round((minX + maxX - eff.width) / 2);
+        else if (mode === 'right') geo.x = Math.round(maxX - eff.width);
+        else if (mode === 'top') geo.y = Math.round(minY);
+        else if (mode === 'middleV') geo.y = Math.round((minY + maxY - eff.height) / 2);
+        else if (mode === 'bottom') geo.y = Math.round(maxY - eff.height);
+        get().setGeometry(id, geo);
+      }
+    },
+
+    matchSizeSelection: (mode) => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (ids.length < 2) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const anchorId = ids.includes(s.selectedId ?? '') ? s.selectedId! : ids[0];
+      const anchor = page.components.find((c) => c.id === anchorId);
+      if (!anchor) return;
+      const aEff = effectiveComponent(anchor, s.project.breakpoints, s.activeBreakpointId, baseWidth);
+      for (const id of ids) {
+        if (id === anchorId) continue;
+        const geo: { width?: number; height?: number } = {};
+        if (mode === 'width' || mode === 'both') geo.width = aEff.width;
+        if (mode === 'height' || mode === 'both') geo.height = aEff.height;
+        get().setGeometry(id, geo);
+      }
+    },
+
+    distributeSelection: (axis) => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (ids.length < 3) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const effs = page.components
+        .filter((c) => ids.includes(c.id))
+        .map((c) => ({ id: c.id, eff: effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth) }));
+      const pos = (e: (typeof effs)[0]) => (axis === 'h' ? e.eff.x : e.eff.y);
+      const size = (e: (typeof effs)[0]) => (axis === 'h' ? e.eff.width : e.eff.height);
+      effs.sort((a, b) => pos(a) - pos(b));
+      const first = effs[0];
+      const last = effs[effs.length - 1];
+      const span = pos(last) + size(last) - pos(first);
+      const totalSize = effs.reduce((sum, e) => sum + size(e), 0);
+      const gap = (span - totalSize) / (effs.length - 1);
+      let cursor = pos(first);
+      for (const e of effs) {
+        const target = Math.round(cursor);
+        get().setGeometry(e.id, axis === 'h' ? { x: target } : { y: target });
+        cursor += size(e) + gap;
+      }
+    },
+
+    scaleSelection: (percent) => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length || !Number.isFinite(percent) || percent <= 0) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const effs = page.components
+        .filter((c) => ids.includes(c.id))
+        .map((c) => ({ id: c.id, eff: effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth) }));
+      if (!effs.length) return;
+      const minX = Math.min(...effs.map((e) => e.eff.x));
+      const minY = Math.min(...effs.map((e) => e.eff.y));
+      const f = percent / 100;
+      for (const { id, eff } of effs) {
+        get().setGeometry(id, {
+          x: Math.round(minX + (eff.x - minX) * f),
+          y: Math.round(minY + (eff.y - minY) * f),
+          width: Math.max(4, Math.round(eff.width * f)),
+          height: Math.max(4, Math.round(eff.height * f)),
+        });
+      }
+    },
+
+    rotateSelection: (deltaDeg) => {
+      const s = get();
+      for (const id of selectionIds(s)) {
+        const c = currentPage(get()).components.find((c) => c.id === id);
+        if (!c) continue;
+        const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, responsiveBaseWidth(currentPage(get())));
+        get().updateProps(id, transformPatch(eff.props.transform, (t) => { t.rotate += deltaDeg; }));
+      }
+    },
+
+    flipSelection: (axis) => {
+      const s = get();
+      for (const id of selectionIds(s)) {
+        const c = currentPage(get()).components.find((c) => c.id === id);
+        if (!c) continue;
+        const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, responsiveBaseWidth(currentPage(get())));
+        get().updateProps(id, transformPatch(eff.props.transform, (t) => {
+          if (axis === 'h') t.flipH = !t.flipH;
+          else t.flipV = !t.flipV;
+        }));
+      }
+    },
+
+    matchPageWidthSelection: (artboardWidth) => {
+      const s = get();
+      for (const id of selectionIds(s)) get().setGeometry(id, { x: 0, width: Math.round(artboardWidth) });
+    },
+
+    groupSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (ids.length < 2) return;
+      const gid = uid('grp');
+      set((st) =>
+        withPage(st, (p) => ({
+          ...p,
+          components: p.components.map((c) => (ids.includes(c.id) ? { ...c, props: { ...c.props, groupId: gid } } : c)),
+        }))
+      );
+    },
+
+    ungroupSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      const page = currentPage(s);
+      const gids = new Set(
+        page.components.filter((c) => ids.includes(c.id) && c.props?.groupId).map((c) => String(c.props.groupId))
+      );
+      if (!gids.size) return;
+      set((st) =>
+        withPage(st, (p) => ({
+          ...p,
+          components: p.components.map((c) => {
+            if (!c.props?.groupId || !gids.has(String(c.props.groupId))) return c;
+            const props = { ...c.props };
+            delete props.groupId;
+            return { ...c, props };
+          }),
+        }))
+      );
+    },
+
+    mergeSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (ids.length < 2) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const items = page.components.filter((c) => ids.includes(c.id));
+      if (items.length < 2) return;
+      const effs = items.map((c) => effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth));
+      const html = mergedBlockHtml(items, effs);
+      const minX = Math.min(...effs.map((e) => e.x));
+      const minY = Math.min(...effs.map((e) => e.y));
+      const maxX = Math.max(...effs.map((e) => e.x + e.width));
+      const maxY = Math.max(...effs.map((e) => e.y + e.height));
+      const def = COMPONENT_MAP['htmlEmbed'];
+      const merged: ComponentItem = {
+        id: uid('cmp'),
+        type: 'htmlEmbed',
+        x: minX,
+        y: minY,
+        width: Math.max(4, maxX - minX),
+        height: Math.max(4, maxY - minY),
+        props: {
+          ...(def?.defaultProps ?? {}),
+          html,
+          mergedItems: JSON.parse(JSON.stringify(items)) as ComponentItem[],
+        },
+        events: {},
+        overrides: {},
+      };
+      set((st) => ({
+        ...withPage(st, (p) =>
+          fitPageHeight(
+            { ...p, components: [...p.components.filter((c) => !ids.includes(c.id)), merged] },
+            merged.y + merged.height,
+            st.gridSize,
+            st.snapToGrid
+          )
+        ),
+        selectedId: merged.id,
+        selectedIds: [merged.id],
+        selectedGuideId: null,
+      }));
+    },
+
+    splitSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      const page = currentPage(s);
+      const targets = page.components.filter((c) => ids.includes(c.id) && Array.isArray(c.props?.mergedItems));
+      if (!targets.length) return;
+      const restored = targets.flatMap((t) =>
+        (t.props.mergedItems as ComponentItem[]).map((it) => ({
+          ...(JSON.parse(JSON.stringify(it)) as ComponentItem),
+          id: uid('cmp'),
+        }))
+      );
+      const targetIds = targets.map((t) => t.id);
+      set((st) => ({
+        ...withPage(st, (p) => ({
+          ...p,
+          components: [...p.components.filter((c) => !targetIds.includes(c.id)), ...restored],
+        })),
+        selectedId: restored[0]?.id ?? null,
+        selectedIds: restored.map((r) => r.id),
+      }));
+    },
+
+    saveSelectionAsBlock: (name) => {
+      const s = get();
+      const ids = selectionIds(s);
+      const page = currentPage(s);
+      const items = page.components.filter((c) => ids.includes(c.id));
+      if (!items.length) return;
+      const minX = Math.min(...items.map((c) => c.x));
+      const minY = Math.min(...items.map((c) => c.y));
+      const cloned = items.map((c) => ({
+        ...(JSON.parse(JSON.stringify(c)) as ComponentItem),
+        x: c.x - minX,
+        y: c.y - minY,
+      }));
+      const block = { id: uid('blk'), name: name.trim() || 'Block', items: cloned };
+      set((st) => ({
+        project: { ...st.project, customBlocks: [...(st.project.customBlocks ?? []), block] },
+        dirty: true,
+      }));
+    },
+
+    insertBlock: (blockId) => {
+      const s = get();
+      const block = s.project.customBlocks?.find((b) => b.id === blockId);
+      if (!block || !block.items.length) return;
+      const offset = 20;
+      const items = block.items.map((it) => ({
+        ...(JSON.parse(JSON.stringify(it)) as ComponentItem),
+        id: uid('cmp'),
+        x: it.x + offset,
+        y: it.y + offset,
+      }));
+      const maxBottom = Math.max(...items.map((i) => i.y + i.height));
+      set((st) => ({
+        ...withPage(st, (p) =>
+          fitPageHeight({ ...p, components: [...p.components, ...items] }, maxBottom, st.gridSize, st.snapToGrid)
+        ),
+        selectedId: items[0].id,
+        selectedIds: items.map((i) => i.id),
+        selectedGuideId: null,
+      }));
+    },
+
+    deleteBlock: (blockId) =>
+      set((st) => ({
+        project: { ...st.project, customBlocks: (st.project.customBlocks ?? []).filter((b) => b.id !== blockId) },
+        dirty: true,
+      })),
+
+    lockSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      const page = currentPage(s);
+      const anyUnlocked = page.components.some((c) => ids.includes(c.id) && !c.locked);
+      set((st) =>
+        withPage(st, (p) => ({
+          ...p,
+          components: p.components.map((c) => (ids.includes(c.id) ? { ...c, locked: anyUnlocked } : c)),
+        }))
+      );
+    },
+
+    lockAll: () =>
+      set((st) =>
+        withPage(st, (p) => ({ ...p, components: p.components.map((c) => ({ ...c, locked: true })) }))
+      ),
+
+    unlockAll: () =>
+      set((st) =>
+        withPage(st, (p) => ({ ...p, components: p.components.map((c) => ({ ...c, locked: false })) }))
+      ),
+
+    toggleProtectedSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      const page = currentPage(s);
+      const allProtected = page.components.filter((c) => ids.includes(c.id)).every((c) => c.props?.protected);
+      set((st) =>
+        withPage(st, (p) => ({
+          ...p,
+          components: p.components.map((c) => {
+            if (!ids.includes(c.id)) return c;
+            const props = { ...c.props };
+            if (allProtected) delete props.protected;
+            else props.protected = true;
+            return { ...c, props };
+          }),
+        }))
+      );
+    },
+
+    toggleFlexboxSelection: () => {
+      const s = get();
+      const ids = selectionIds(s);
+      if (!ids.length) return;
+      const page = currentPage(s);
+      const baseWidth = responsiveBaseWidth(page);
+      const allFlex = page.components
+        .filter((c) => ids.includes(c.id))
+        .every((c) => effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth).props?.display === 'flex');
+      for (const id of ids) {
+        if (allFlex) {
+          const c = currentPage(get()).components.find((c) => c.id === id);
+          if (!c) continue;
+          const eff = effectiveComponent(c, s.project.breakpoints, s.activeBreakpointId, baseWidth);
+          const patch: Record<string, any> = {};
+          for (const k of ['display', 'flexDirection', 'flexWrap', 'gap', 'justifyContent', 'alignItems']) {
+            if (eff.props[k] !== undefined) patch[k] = '';
+          }
+          get().updateProps(id, patch);
+        } else {
+          get().updateProps(id, { display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' });
+        }
+      }
+    },
+
+    setBoxSelection: (kind, value) => {
+      const v = value.trim();
+      if (v && !/^[\d.a-z%]+(\s+[\d.a-z%]+){0,3}$/i.test(v)) return;
+      const s = get();
+      for (const id of selectionIds(s)) get().updateProps(id, { [kind]: v });
+    },
+
+    openBoxDialog: (kind) => set({ boxDialog: { kind } }),
+    closeBoxDialog: () => set({ boxDialog: null }),
+
+
+    selectGuide: (id) => set({ selectedGuideId: id, selectedId: null, selectedIds: [] }),
+    addGuide: (guide) => {
+      const id = uid('guide');
+      const item: GuideItem = { ...guide, id, overrides: {} };
+      set((s) => ({
+        ...withPage(s, (p) => ({ ...p, guides: [...(p.guides ?? []), item] })),
+        selectedGuideId: id,
+        selectedId: null,
+        selectedIds: [],
+      }));
+      return id;
+    },
+    updateGuide: (id, patch) =>
+      set((s) =>
+        withPage(s, (p) => ({
+          ...p,
+          guides: (p.guides ?? []).map((guide) => {
+            if (guide.id !== id) return guide;
+            if (!s.activeBreakpointId) return { ...guide, ...patch };
+            const prev: GuideOverride =
+              guide.overrides?.[s.activeBreakpointId] ??
+              snapshotGuideAtBreakpoint(guide, s.project.breakpoints, s.activeBreakpointId, responsiveBaseWidth(p));
+            return {
+              ...guide,
+              overrides: {
+                ...(guide.overrides ?? {}),
+                [s.activeBreakpointId]: { ...prev, ...patch },
+              },
+            };
+          }),
+        }))
+      ),
+    deleteGuide: (id) =>
+      set((s) => ({
+        ...withPage(s, (p) => ({ ...p, guides: (p.guides ?? []).filter((guide) => guide.id !== id) })),
+        selectedGuideId: s.selectedGuideId === id ? null : s.selectedGuideId,
+      })),
 
     addBreakpoint: (name, maxWidth) =>
       set((s) => ({
@@ -586,6 +1100,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
               delete overrides[id];
               return { ...c, overrides, hiddenIn: (c.hiddenIn ?? []).filter((b) => b !== id) };
             }),
+            guides: (p.guides ?? []).map((guide) => {
+              if (!guide.overrides?.[id]) return guide;
+              const overrides = { ...(guide.overrides ?? {}) };
+              delete overrides[id];
+              return { ...guide, overrides };
+            }),
           })),
         },
         activeBreakpointId: s.activeBreakpointId === id ? null : s.activeBreakpointId,
@@ -599,6 +1119,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           pages: s.project.pages.map((p) => ({
             ...p,
             components: p.components.map((c) => ({ ...c, overrides: {}, hiddenIn: [] })),
+            guides: (p.guides ?? []).map((guide) => ({ ...guide, overrides: {} })),
           })),
         },
         activeBreakpointId: null,
@@ -645,7 +1166,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }),
     setBreakpointMode: (mode) =>
       set((s) => ({ project: { ...s.project, breakpointMode: mode }, dirty: true })),
-    setActiveBreakpoint: (id) => set({ activeBreakpointId: id, selectedId: null }),
+    setActiveBreakpoint: (id) => set({ activeBreakpointId: id, selectedId: null, selectedIds: [], selectedGuideId: null }),
 
     openManageBreakpoints: () => set({ manageBreakpointsOpen: true }),
     closeManageBreakpoints: () => set({ manageBreakpointsOpen: false }),

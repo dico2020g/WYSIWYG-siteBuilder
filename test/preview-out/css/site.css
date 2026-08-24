@@ -4,7 +4,23 @@ body { margin: 0; font-family: Arial, sans-serif; }
 .sb-cmp { box-sizing: border-box; }
 .sb-page h1, .sb-page h2, .sb-page h3, .sb-page h4, .sb-page h5, .sb-page h6, .sb-page p, .sb-page ul, .sb-page ol { margin: 0; }
 
-.sb-page-index { width: 970px; min-height: 400px; background: #ffffff; }
+.sb-page-index { width: 970px; min-height: 1000px; background: #ffffff; }
 
 /* --- index --- */
-#c1 { position: absolute; left: 20px; top: 20px; width: 700px; height: 60px; font-size: 32px; font-weight: bold; text-align: center; color: #ffffff; background-color: #0b5ed7; border-radius: 9999px; }
+#cmp_t1 { position: absolute; left: 100px; top: 100px; width: 700px; height: 60px; font-size: 20px; }
+
+@media (max-width: 768px) {
+  .sb-page-index { width: 100%; max-width: 768px; min-height: 1000px; }
+  #cmp_t1 { left: 79px; top: 79px; width: 554px; height: 48px; font-size: 20px; }
+}
+
+@media (max-width: 480px) {
+  .sb-page-index { width: 100%; max-width: 480px; min-height: 1000px; }
+  #cmp_t1 { left: 49px; top: 49px; width: 346px; height: 30px; font-size: 20px; }
+}
+
+/* Viewports narrower than the smallest breakpoint: scale to fit (JS-assisted) */
+@media (max-width: 479px) {
+  html, body { overflow-x: hidden; }
+  .sb-fit { width: 100%; overflow: hidden; }
+}

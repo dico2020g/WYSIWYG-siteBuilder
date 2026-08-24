@@ -56,6 +56,28 @@ ipcMain.handle('project:open', async () => {
   return { filePath, json };
 });
 
+// ---- IPC: image assets ----
+ipcMain.handle('asset:pickImage', async () => {
+  const res = await dialog.showOpenDialog({
+    title: 'Select Image',
+    filters: [
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (res.canceled || res.filePaths.length === 0) return null;
+  const filePath = res.filePaths[0];
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const mime = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', ico: 'image/x-icon', avif: 'image/avif',
+  }[ext] || 'application/octet-stream';
+  return {
+    name: path.basename(filePath),
+    dataUrl: `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`,
+  };
+});
+
 // ---- IPC: export ----
 ipcMain.handle('export:site', async (_e, files) => {
   const res = await dialog.showOpenDialog({

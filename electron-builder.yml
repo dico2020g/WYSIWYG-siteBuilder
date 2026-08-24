@@ -3,11 +3,13 @@ productName: WYSIWYG SiteBuilder
 asar: false
 directories:
   output: installer
+  buildResources: build
 files:
   - electron/**/*
   - dist-renderer/**/*
   - package.json
 win:
+  icon: build/app-icon.png
   target:
     - nsis
 nsis:

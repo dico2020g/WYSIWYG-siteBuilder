@@ -8,6 +8,7 @@ import './styles/canvas.css';
 import './styles/properties.css';
 import './styles/dialogs.css';
 import './styles/database.css';
+import './styles/ui-polish.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
