@@ -30,6 +30,11 @@ export interface ComponentDef {
   fields: PropField[];
 }
 
+export interface ComponentPropertyGroup {
+  group: string;
+  fields: PropField[];
+}
+
 /* ------------------------------------------------------------ common props */
 
 /** Common props every control carries. Geometry (x/y/width/height) stays a
@@ -38,16 +43,19 @@ export function commonDefaults(): Record<string, any> {
   return {
     componentName: '',
     // Layout extras
-    minWidth: '', maxWidth: '', margin: '', padding: '',
-    position: 'absolute', zIndex: '', overflow: 'visible',
+    minWidth: '', maxWidth: '', minHeight: '', maxHeight: '', margin: '', padding: '',
+    position: 'absolute', zIndex: '', overflow: 'visible', boxSizing: 'border-box', cursor: 'auto',
     // Background / Border
-    backgroundColor: '', borderWidth: 0, borderStyle: 'solid', borderColor: '#000000',
-    borderRadius: 0, boxShadow: '',
+    backgroundColor: '', backgroundImage: '', backgroundSize: 'auto',
+    backgroundPosition: 'center center', backgroundRepeat: 'no-repeat',
+    borderWidth: 0, borderStyle: 'solid', borderColor: '#000000', borderRadius: 0,
+    outlineWidth: 0, outlineStyle: 'solid', outlineColor: '#000000', boxShadow: '',
     // Typography
     fontFamily: 'Arial', fontSize: 14, fontWeight: 'normal', color: '#000000',
-    textAlign: 'left', lineHeight: '', letterSpacing: '',
+    textAlign: 'left', lineHeight: '', letterSpacing: '', wordSpacing: '',
+    fontStyle: 'normal', textDecoration: 'none', textTransform: 'none', whiteSpace: 'normal',
     // Effects
-    opacity: 100, hoverCss: '', transition: '', animation: '', transform: '',
+    opacity: 100, filter: 'none', mixBlendMode: 'normal', hoverCss: '', transition: '', animation: '', transform: '',
     // Advanced
     domId: '', cssClass: '', customAttributes: '', ariaLabel: '', customCss: '',
     objectBeforeHtml: '', objectAfterHtml: '',
@@ -74,11 +82,15 @@ export const COMMON_GROUPS: { group: string; fields: PropField[] }[] = [
       { key: 'height', label: 'Height', type: 'number', group: 'Layout', bind: 'geometry' },
       { key: 'minWidth', label: 'Min Width', type: 'text', group: 'Layout' },
       { key: 'maxWidth', label: 'Max Width', type: 'text', group: 'Layout' },
+      { key: 'minHeight', label: 'Min Height', type: 'text', group: 'Layout' },
+      { key: 'maxHeight', label: 'Max Height', type: 'text', group: 'Layout' },
       { key: 'margin', label: 'Margin', type: 'text', group: 'Layout' },
       { key: 'padding', label: 'Padding', type: 'text', group: 'Layout' },
       { key: 'position', label: 'Position', type: 'select', group: 'Layout', options: ['absolute', 'fixed', 'sticky'] },
       { key: 'zIndex', label: 'Z-Index', type: 'number', group: 'Layout' },
       { key: 'overflow', label: 'Overflow', type: 'select', group: 'Layout', options: ['visible', 'hidden', 'auto', 'scroll'] },
+      { key: 'boxSizing', label: 'Box Sizing', type: 'select', group: 'Layout', options: ['border-box', 'content-box'] },
+      { key: 'cursor', label: 'Cursor', type: 'select', group: 'Layout', options: ['auto', 'default', 'pointer', 'text', 'move', 'grab', 'crosshair', 'not-allowed', 'none'] },
     ],
   },
   {
@@ -88,15 +100,26 @@ export const COMMON_GROUPS: { group: string; fields: PropField[] }[] = [
         options: ['Arial', 'Helvetica', 'Verdana', 'Georgia', 'Times New Roman', 'Courier New', 'Tahoma', 'Trebuchet MS', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat'] },
       { key: 'fontSize', label: 'Font Size', type: 'number', group: 'Typography' },
       { key: 'fontWeight', label: 'Font Weight', type: 'select', group: 'Typography', options: ['normal', 'bold', 'lighter', '100', '200', '300', '400', '500', '600', '700', '800', '900'] },
+      { key: 'fontStyle', label: 'Font Style', type: 'select', group: 'Typography', options: ['normal', 'italic', 'oblique'] },
       { key: 'color', label: 'Text Color', type: 'color', group: 'Typography' },
       { key: 'textAlign', label: 'Alignment', type: 'select', group: 'Typography', options: ['left', 'center', 'right', 'justify'] },
       { key: 'lineHeight', label: 'Line Height', type: 'text', group: 'Typography' },
       { key: 'letterSpacing', label: 'Letter Spacing', type: 'text', group: 'Typography' },
+      { key: 'wordSpacing', label: 'Word Spacing', type: 'text', group: 'Typography' },
+      { key: 'textDecoration', label: 'Decoration', type: 'select', group: 'Typography', options: ['none', 'underline', 'overline', 'line-through'] },
+      { key: 'textTransform', label: 'Text Transform', type: 'select', group: 'Typography', options: ['none', 'uppercase', 'lowercase', 'capitalize'] },
+      { key: 'whiteSpace', label: 'White Space', type: 'select', group: 'Typography', options: ['normal', 'nowrap', 'pre', 'pre-wrap', 'pre-line'] },
     ],
   },
   {
     group: 'Background',
-    fields: [{ key: 'backgroundColor', label: 'Color', type: 'color', group: 'Background' }],
+    fields: [
+      { key: 'backgroundColor', label: 'Color', type: 'color', group: 'Background' },
+      { key: 'backgroundImage', label: 'Image / Gradient', type: 'text', group: 'Background' },
+      { key: 'backgroundSize', label: 'Size', type: 'select', group: 'Background', options: ['auto', 'cover', 'contain', '100% 100%'] },
+      { key: 'backgroundPosition', label: 'Position', type: 'select', group: 'Background', options: ['left top', 'center top', 'right top', 'left center', 'center center', 'right center', 'left bottom', 'center bottom', 'right bottom'] },
+      { key: 'backgroundRepeat', label: 'Repeat', type: 'select', group: 'Background', options: ['no-repeat', 'repeat', 'repeat-x', 'repeat-y', 'space', 'round'] },
+    ],
   },
   {
     group: 'Border',
@@ -105,6 +128,9 @@ export const COMMON_GROUPS: { group: string; fields: PropField[] }[] = [
       { key: 'borderStyle', label: 'Style', type: 'select', group: 'Border', options: ['solid', 'dashed', 'dotted', 'double', 'none'] },
       { key: 'borderColor', label: 'Color', type: 'color', group: 'Border' },
       { key: 'borderRadius', label: 'Radius', type: 'number', group: 'Border' },
+      { key: 'outlineWidth', label: 'Outline Width', type: 'number', group: 'Border' },
+      { key: 'outlineStyle', label: 'Outline Style', type: 'select', group: 'Border', options: ['solid', 'dashed', 'dotted', 'double', 'none'] },
+      { key: 'outlineColor', label: 'Outline Color', type: 'color', group: 'Border' },
     ],
   },
   {
@@ -112,6 +138,8 @@ export const COMMON_GROUPS: { group: string; fields: PropField[] }[] = [
     fields: [
       { key: 'opacity', label: 'Opacity (0-100)', type: 'number', group: 'Effects' },
       { key: 'boxShadow', label: 'Box Shadow', type: 'text', group: 'Effects' },
+      { key: 'filter', label: 'Filter', type: 'select', group: 'Effects', options: ['none', 'blur(2px)', 'brightness(0.8)', 'brightness(1.2)', 'contrast(1.2)', 'grayscale(1)', 'sepia(1)', 'drop-shadow(0 4px 8px rgba(0,0,0,.25))'] },
+      { key: 'mixBlendMode', label: 'Blend Mode', type: 'select', group: 'Effects', options: ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'] },
       { key: 'hoverCss', label: 'Hover (CSS declarations)', type: 'textarea', group: 'Effects' },
       { key: 'transition', label: 'Transition', type: 'text', group: 'Effects' },
       { key: 'animation', label: 'Animation', type: 'text', group: 'Effects' },
@@ -129,6 +157,109 @@ export const COMMON_GROUPS: { group: string; fields: PropField[] }[] = [
     ],
   },
 ];
+
+const TYPOGRAPHY_TYPES = new Set([
+  'text', 'heading', 'paragraph', 'button', 'link', 'icon', 'list', 'card', 'panel',
+  'textInput', 'password', 'email', 'number', 'tel', 'textarea', 'checkbox', 'radio',
+  'select', 'date', 'time', 'file', 'submit', 'reset', 'navbar', 'menubar', 'hamburger',
+  'dropdown', 'sidebar', 'breadcrumb', 'pagination', 'tabs', 'accordion', 'modal',
+  'tooltip', 'progress', 'counter', 'rating', 'badge', 'alert', 'timeline', 'table',
+  'datagrid', 'repeater', 'treeview', 'searchbox', 'socialicons', 'sharebuttons',
+  'whatsapp', 'cookieconsent', 'login', 'register', 'logout', 'profile', 'dbform',
+  'dbtable', 'searchresults', 'productcard', 'productgrid', 'price', 'quantity',
+  'addtocart', 'cart', 'checkout', 'calendar', 'countdown',
+]);
+
+const NO_BACKGROUND_TYPES = new Set([
+  'image', 'divider', 'spacer', 'hiddenField', 'video', 'audio', 'youtube', 'gallery',
+  'slideshow', 'carousel', 'lightbox', 'facebook', 'xembed', 'map', 'marker', 'iframe',
+  'qrcode', 'captcha', 'htmlEmbed', 'html', 'css', 'javascript',
+]);
+
+const NO_BORDER_TYPES = new Set(['spacer', 'hiddenField', 'css', 'javascript']);
+
+const MEDIA_KEYS = new Set(['src', 'imageSrc', 'images', 'videoId', 'url', 'pageUrl', 'tweetUrl', 'avatarUrl', 'objectFit', 'alt', 'provider', 'controls', 'autoplay']);
+const FORM_KEYS = new Set(['name', 'placeholder', 'value', 'min', 'max', 'checked', 'options', 'accept', 'action', 'method', 'siteKey', 'fields']);
+const NAVIGATION_KEYS = new Set(['href', 'target', 'links', 'pages', 'current', 'separator', 'tabs', 'redirect']);
+const DATA_KEYS = new Set(['data', 'rows', 'columns', 'headerRow', 'itemTemplate', 'apiUrl', 'param']);
+const BEHAVIOR_KEYS = new Set(['open', 'active', 'visible', 'duration', 'interval', 'direction', 'justify', 'alignItems', 'gap']);
+
+const extra = (key: string, label: string, type: PropFieldType, group: string, options?: string[]): PropField =>
+  ({ key, label, type, group, options });
+
+const INPUT_EXTRAS: PropField[] = [
+  extra('required', 'Required', 'checkbox', 'Form & Validation'),
+  extra('disabled', 'Disabled', 'checkbox', 'Form & Validation'),
+  extra('readOnly', 'Read Only', 'checkbox', 'Form & Validation'),
+  extra('autocomplete', 'Autocomplete', 'select', 'Form & Validation', ['off', 'on', 'name', 'email', 'username', 'current-password', 'new-password', 'tel', 'street-address', 'postal-code']),
+];
+
+const COMPONENT_EXTRA_FIELDS: Record<string, PropField[]> = {
+  image: [
+    extra('loading', 'Loading', 'select', 'Media', ['lazy', 'eager']),
+    extra('decoding', 'Decoding', 'select', 'Media', ['auto', 'async', 'sync']),
+  ],
+  button: [
+    extra('buttonType', 'Button Type', 'select', 'Behavior', ['button', 'submit', 'reset']),
+    extra('disabled', 'Disabled', 'checkbox', 'Behavior'),
+  ],
+  form: [
+    extra('enctype', 'Encoding', 'select', 'Form & Validation', ['application/x-www-form-urlencoded', 'multipart/form-data', 'text/plain']),
+    extra('autocomplete', 'Autocomplete', 'select', 'Form & Validation', ['on', 'off']),
+    extra('noValidate', 'Disable Browser Validation', 'checkbox', 'Form & Validation'),
+  ],
+  textInput: [...INPUT_EXTRAS, extra('inputMode', 'Input Mode', 'select', 'Form & Validation', ['text', 'search', 'email', 'tel', 'url', 'numeric', 'decimal', 'none']), extra('pattern', 'Validation Pattern', 'text', 'Form & Validation')],
+  password: [...INPUT_EXTRAS, extra('minLength', 'Minimum Length', 'number', 'Form & Validation'), extra('maxLength', 'Maximum Length', 'number', 'Form & Validation')],
+  email: [...INPUT_EXTRAS, extra('multiple', 'Allow Multiple', 'checkbox', 'Form & Validation')],
+  number: [...INPUT_EXTRAS, extra('step', 'Step', 'text', 'Form & Validation')],
+  tel: [...INPUT_EXTRAS, extra('pattern', 'Validation Pattern', 'text', 'Form & Validation')],
+  date: [...INPUT_EXTRAS, extra('step', 'Step', 'text', 'Form & Validation')],
+  time: [...INPUT_EXTRAS, extra('step', 'Step', 'text', 'Form & Validation')],
+  textarea: [...INPUT_EXTRAS, extra('minLength', 'Minimum Length', 'number', 'Form & Validation'), extra('maxLength', 'Maximum Length', 'number', 'Form & Validation'), extra('wrap', 'Text Wrapping', 'select', 'Form & Validation', ['soft', 'hard', 'off'])],
+  select: [extra('required', 'Required', 'checkbox', 'Form & Validation'), extra('disabled', 'Disabled', 'checkbox', 'Form & Validation'), extra('multiple', 'Allow Multiple', 'checkbox', 'Form & Validation')],
+  file: [extra('required', 'Required', 'checkbox', 'Form & Validation'), extra('disabled', 'Disabled', 'checkbox', 'Form & Validation'), extra('multiple', 'Allow Multiple', 'checkbox', 'Form & Validation'), extra('capture', 'Capture Source', 'select', 'Form & Validation', ['', 'user', 'environment'])],
+  range: [extra('disabled', 'Disabled', 'checkbox', 'Form & Validation'), extra('step', 'Step', 'text', 'Form & Validation')],
+  checkbox: [extra('required', 'Required', 'checkbox', 'Form & Validation'), extra('disabled', 'Disabled', 'checkbox', 'Form & Validation')],
+  radio: [extra('required', 'Required', 'checkbox', 'Form & Validation'), extra('disabled', 'Disabled', 'checkbox', 'Form & Validation')],
+  video: [extra('poster', 'Poster Image', 'text', 'Media'), extra('preload', 'Preload', 'select', 'Media', ['metadata', 'auto', 'none']), extra('muted', 'Muted', 'checkbox', 'Behavior'), extra('loop', 'Loop', 'checkbox', 'Behavior'), extra('playsInline', 'Play Inline', 'checkbox', 'Behavior')],
+  audio: [extra('preload', 'Preload', 'select', 'Media', ['metadata', 'auto', 'none']), extra('autoplay', 'Autoplay', 'checkbox', 'Behavior'), extra('muted', 'Muted', 'checkbox', 'Behavior'), extra('loop', 'Loop', 'checkbox', 'Behavior')],
+  iframe: [extra('loading', 'Loading', 'select', 'Media', ['lazy', 'eager']), extra('allowFullscreen', 'Allow Full Screen', 'checkbox', 'Behavior'), extra('referrerPolicy', 'Referrer Policy', 'select', 'Behavior', ['strict-origin-when-cross-origin', 'no-referrer', 'origin', 'same-origin', 'unsafe-url'])],
+};
+
+function specificGroupFor(definition: ComponentDef, field: PropField): string {
+  if (field.group !== 'Content') return field.group;
+  if (MEDIA_KEYS.has(field.key)) return 'Media';
+  if (FORM_KEYS.has(field.key) || definition.group === 'Forms') return 'Form & Validation';
+  if (NAVIGATION_KEYS.has(field.key) || definition.group === 'Navigation' || definition.group === 'Mobile') return 'Navigation';
+  if (DATA_KEYS.has(field.key) || definition.group === 'Data') return 'Data';
+  if (definition.group === 'User') return 'Account';
+  if (definition.group === 'E-Commerce') return 'Commerce';
+  if (BEHAVIOR_KEYS.has(field.key)) return 'Behavior';
+  if (['html', 'code'].includes(field.key) || ['htmlEmbed', 'html', 'css', 'javascript'].includes(definition.type)) return 'Code';
+  return 'Content';
+}
+
+/** Returns only the property groups that are useful for this component type. */
+export function propertyGroupsForComponent(definition: ComponentDef): ComponentPropertyGroup[] {
+  const groups = new Map<string, PropField[]>();
+  for (const field of [...definition.fields, ...(COMPONENT_EXTRA_FIELDS[definition.type] ?? [])]) {
+    const group = specificGroupFor(definition, field);
+    groups.set(group, [...(groups.get(group) ?? []), { ...field, group }]);
+  }
+
+  const addCommon = (name: string) => {
+    const common = COMMON_GROUPS.find((entry) => entry.group === name);
+    if (common) groups.set(name, common.fields);
+  };
+
+  if (definition.type !== 'hiddenField') addCommon('Layout');
+  if (TYPOGRAPHY_TYPES.has(definition.type)) addCommon('Typography');
+  if (!NO_BACKGROUND_TYPES.has(definition.type)) addCommon('Background');
+  if (!NO_BORDER_TYPES.has(definition.type)) addCommon('Border');
+  addCommon('Effects');
+
+  return Array.from(groups, ([group, fields]) => ({ group, fields }));
+}
 
 /** The "Responsive" group is generated by the Properties panel from the
  *  project's breakpoints (Desktop ↔ hidden flag, each breakpoint ↔ hiddenIn),

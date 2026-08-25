@@ -925,11 +925,12 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
     case 'image': {
       const src = String(p.src ?? '').trim();
       if (!src) return `${openTag(cmp, 'div')}<!-- image: no src set --></div>`;
-      return selfClosingTag(cmp, 'img', `src="${escapeAttr(src)}" alt="${escapeAttr(String(p.alt ?? ''))}"`);
+      return selfClosingTag(cmp, 'img', `src="${escapeAttr(src)}" alt="${escapeAttr(String(p.alt ?? ''))}" loading="${escapeAttr(String(p.loading || 'lazy'))}" decoding="${escapeAttr(String(p.decoding || 'auto'))}"`);
     }
 
     case 'button': {
-      const btn = `${openTag(cmp, 'button', 'type="button"')}${escapeHtml(String(p.text ?? ''))}</button>`;
+      const buttonAttrs = `type="${escapeAttr(String(p.buttonType || 'button'))}"${p.disabled ? ' disabled' : ''}`;
+      const btn = `${openTag(cmp, 'button', buttonAttrs)}${escapeHtml(String(p.text ?? ''))}</button>`;
       const href = String(p.href ?? '').trim();
       if (!href) return btn;
       const target = String(p.target ?? '_self');
@@ -970,8 +971,16 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
       return `${openTag(cmp, 'div')}${String(p.html ?? '')}</div>`;
 
     /* ----------------------------------------------------------- Forms */
-    case 'form':
-      return `${openTag(cmp, 'form', `action="${escapeAttr(String(p.action ?? ''))}" method="${escapeAttr(String(p.method ?? 'post'))}"`)}<!-- form body: field components are positioned inside this box --></form>`;
+    case 'form': {
+      const attrs = [
+        `action="${escapeAttr(String(p.action ?? ''))}"`,
+        `method="${escapeAttr(String(p.method ?? 'post'))}"`,
+        `enctype="${escapeAttr(String(p.enctype || 'application/x-www-form-urlencoded'))}"`,
+        `autocomplete="${escapeAttr(String(p.autocomplete || 'on'))}"`,
+      ];
+      if (p.noValidate) attrs.push('novalidate');
+      return `${openTag(cmp, 'form', attrs.join(' '))}<!-- form body: field components are positioned inside this box --></form>`;
+    }
 
     case 'textInput':
     case 'password':
@@ -983,6 +992,16 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
       const attrs = [`type="${INPUT_TYPE_MAP[cmp.type]}"`, `name="${escapeAttr(String(p.name ?? ''))}"`];
       const ph = String(p.placeholder ?? '');
       if (ph) attrs.push(`placeholder="${escapeAttr(ph)}"`);
+      if (p.required) attrs.push('required');
+      if (p.disabled) attrs.push('disabled');
+      if (p.readOnly) attrs.push('readonly');
+      if (p.multiple) attrs.push('multiple');
+      if (p.autocomplete) attrs.push(`autocomplete="${escapeAttr(String(p.autocomplete))}"`);
+      if (p.inputMode) attrs.push(`inputmode="${escapeAttr(String(p.inputMode))}"`);
+      if (p.pattern) attrs.push(`pattern="${escapeAttr(String(p.pattern))}"`);
+      if (p.minLength !== '' && p.minLength !== undefined) attrs.push(`minlength="${escapeAttr(String(p.minLength))}"`);
+      if (p.maxLength !== '' && p.maxLength !== undefined) attrs.push(`maxlength="${escapeAttr(String(p.maxLength))}"`);
+      if (p.step !== '' && p.step !== undefined) attrs.push(`step="${escapeAttr(String(p.step))}"`);
       if (cmp.type === 'number') {
         if (p.min !== '' && p.min !== undefined) attrs.push(`min="${escapeAttr(String(p.min))}"`);
         if (p.max !== '' && p.max !== undefined) attrs.push(`max="${escapeAttr(String(p.max))}"`);
@@ -992,34 +1011,55 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
 
     case 'file': {
       const accept = String(p.accept ?? '').trim();
+      const attrs = [`type="file"`, `name="${escapeAttr(String(p.name ?? ''))}"`];
+      if (accept) attrs.push(`accept="${escapeAttr(accept)}"`);
+      if (p.required) attrs.push('required');
+      if (p.disabled) attrs.push('disabled');
+      if (p.multiple) attrs.push('multiple');
+      if (p.capture) attrs.push(`capture="${escapeAttr(String(p.capture))}"`);
       return selfClosingTag(
         cmp,
         'input',
-        `type="file" name="${escapeAttr(String(p.name ?? ''))}"${accept ? ` accept="${escapeAttr(accept)}"` : ''}`
+        attrs.join(' ')
       );
     }
 
-    case 'textarea':
-      return `${openTag(cmp, 'textarea', `name="${escapeAttr(String(p.name ?? ''))}" placeholder="${escapeAttr(String(p.placeholder ?? ''))}"`)}</textarea>`;
+    case 'textarea': {
+      const attrs = [`name="${escapeAttr(String(p.name ?? ''))}"`, `placeholder="${escapeAttr(String(p.placeholder ?? ''))}"`];
+      if (p.required) attrs.push('required');
+      if (p.disabled) attrs.push('disabled');
+      if (p.readOnly) attrs.push('readonly');
+      if (p.autocomplete) attrs.push(`autocomplete="${escapeAttr(String(p.autocomplete))}"`);
+      if (p.minLength !== '' && p.minLength !== undefined) attrs.push(`minlength="${escapeAttr(String(p.minLength))}"`);
+      if (p.maxLength !== '' && p.maxLength !== undefined) attrs.push(`maxlength="${escapeAttr(String(p.maxLength))}"`);
+      if (p.wrap) attrs.push(`wrap="${escapeAttr(String(p.wrap))}"`);
+      return `${openTag(cmp, 'textarea', attrs.join(' '))}</textarea>`;
+    }
 
     case 'checkbox':
     case 'radio': {
       const checked = p.checked ? ' checked' : '';
-      return `${openTag(cmp, 'label')}<input type="${cmp.type}" name="${escapeAttr(String(p.name ?? ''))}"${checked}> ${escapeHtml(String(p.label ?? ''))}</label>`;
+      const required = p.required ? ' required' : '';
+      const disabled = p.disabled ? ' disabled' : '';
+      return `${openTag(cmp, 'label')}<input type="${cmp.type}" name="${escapeAttr(String(p.name ?? ''))}"${checked}${required}${disabled}> ${escapeHtml(String(p.label ?? ''))}</label>`;
     }
 
     case 'select': {
       const options = linesOf(p.options)
         .map((o) => `<option value="${escapeAttr(o)}">${escapeHtml(o)}</option>`)
         .join('');
-      return `${openTag(cmp, 'select', `name="${escapeAttr(String(p.name ?? ''))}"`)}${options}</select>`;
+      const attrs = [`name="${escapeAttr(String(p.name ?? ''))}"`];
+      if (p.required) attrs.push('required');
+      if (p.disabled) attrs.push('disabled');
+      if (p.multiple) attrs.push('multiple');
+      return `${openTag(cmp, 'select', attrs.join(' '))}${options}</select>`;
     }
 
     case 'range':
       return selfClosingTag(
         cmp,
         'input',
-        `type="range" name="${escapeAttr(String(p.name ?? ''))}" min="${Number(p.min) || 0}" max="${Number(p.max) || 100}" value="${Number(p.value) || 0}"`
+        `type="range" name="${escapeAttr(String(p.name ?? ''))}" min="${Number(p.min) || 0}" max="${Number(p.max) || 100}" value="${Number(p.value) || 0}"${p.step ? ` step="${escapeAttr(String(p.step))}"` : ''}${p.disabled ? ' disabled' : ''}`
       );
 
     case 'submit':
@@ -1104,6 +1144,11 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
       if (src) attrs.push(`src="${escapeAttr(src)}"`);
       if (p.controls) attrs.push('controls');
       if (p.autoplay) attrs.push('autoplay muted');
+      if (p.poster) attrs.push(`poster="${escapeAttr(String(p.poster))}"`);
+      if (p.preload) attrs.push(`preload="${escapeAttr(String(p.preload))}"`);
+      if (p.muted) attrs.push('muted');
+      if (p.loop) attrs.push('loop');
+      if (p.playsInline) attrs.push('playsinline');
       return `${openTag(cmp, 'video', attrs.join(' '))}</video>`;
     }
 
@@ -1112,6 +1157,10 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
       const attrs: string[] = [];
       if (src) attrs.push(`src="${escapeAttr(src)}"`);
       if (p.controls) attrs.push('controls');
+      if (p.preload) attrs.push(`preload="${escapeAttr(String(p.preload))}"`);
+      if (p.autoplay) attrs.push('autoplay');
+      if (p.muted) attrs.push('muted');
+      if (p.loop) attrs.push('loop');
       return `${openTag(cmp, 'audio', attrs.join(' '))}</audio>`;
     }
 
@@ -1333,8 +1382,12 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
       // User JS inserted verbatim by design; the element itself is inert.
       return `${openTag(cmp, 'div')}<!-- javascript component: code emitted inline below --></div><script>${String(p.code ?? '')}</script>`;
 
-    case 'iframe':
-      return selfClosingTag(cmp, 'iframe', `src="${escapeAttr(String(p.src ?? ''))}" frameborder="0"`);
+    case 'iframe': {
+      const attrs = [`src="${escapeAttr(String(p.src ?? ''))}"`, 'frameborder="0"', `loading="${escapeAttr(String(p.loading || 'lazy'))}"`];
+      if (p.allowFullscreen) attrs.push('allowfullscreen');
+      if (p.referrerPolicy) attrs.push(`referrerpolicy="${escapeAttr(String(p.referrerPolicy))}"`);
+      return selfClosingTag(cmp, 'iframe', attrs.join(' '));
+    }
 
     /* ---------------------------------------------------------- Special */
     case 'qrcode': {

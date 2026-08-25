@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore, useCurrentPage, effectiveComponent } from '../../store/projectStore';
-import { COMPONENT_MAP, COMMON_GROUPS, EVENT_NAMES } from '../../model/componentDefs';
+import { COMPONENT_MAP, COMMON_GROUPS, EVENT_NAMES, propertyGroupsForComponent } from '../../model/componentDefs';
 import { responsiveBaseWidth } from '../../model/responsive';
 import type { PropField } from '../../model/componentDefs';
 import type { Project } from '../../model/types';
@@ -147,7 +147,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /* ---------- inputs ---------- */
 
-function NumberInput({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+function NumberInput({ value, onCommit }: { value: number | string; onCommit: (n: number) => void }) {
   const [draft, setDraft] = useState(String(value));
   const [focused, setFocused] = useState(false);
 
@@ -260,20 +260,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
     );
   };
 
-  const renderCommonGroup = (name: string) => {
-    const g = COMMON_GROUPS.find((g) => g.group === name);
-    if (!g) return null;
-    const rows = g.fields.map(renderField).filter(Boolean);
-    if (rows.length === 0) return null;
-    return (
-      <GroupSection key={name} name={name} filter={filter}>
-        {rows}
-      </GroupSection>
-    );
-  };
-
-  const contentFields = def?.fields ?? [];
-  const contentRows = contentFields.map(renderField).filter(Boolean);
+  const componentGroups = def ? propertyGroupsForComponent(def) : [];
   const advancedFields = COMMON_GROUPS.find((group) => group.group === 'Advanced')?.fields ?? [];
   const advancedRows = advancedFields.map(renderField).filter(Boolean);
   const defaultName = def ? `${def.label}1` : comp.id;
@@ -302,19 +289,14 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
         {advancedRows}
       </GroupSection>
 
-      {/* 1. Content — type-specific fields from the component def */}
-      {contentRows.length > 0 && (
-        <GroupSection name="Content" filter={filter}>
-          {contentRows}
-        </GroupSection>
-      )}
-
-      {/* 2-6. Common groups */}
-      {renderCommonGroup('Layout')}
-      {renderCommonGroup('Typography')}
-      {renderCommonGroup('Background')}
-      {renderCommonGroup('Border')}
-      {renderCommonGroup('Effects')}
+      {componentGroups.map(({ group, fields }) => {
+        const rows = fields.map(renderField).filter(Boolean);
+        return rows.length > 0 ? (
+          <GroupSection key={group} name={group} filter={filter}>
+            {rows}
+          </GroupSection>
+        ) : null;
+      })}
 
     </div>
   );
@@ -414,7 +396,7 @@ function FieldControl({
     case 'number':
       return (
         <NumberInput
-          value={typeof value === 'number' && Number.isFinite(value) ? value : 0}
+          value={typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'string' ? value : ''}
           onCommit={(n) => onCommit(n)}
         />
       );

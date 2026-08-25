@@ -3,6 +3,8 @@ import { useProjectStore, effectiveComponent } from '../src/store/projectStore';
 import { exportSite } from '../src/export/exportHtml';
 import { createProject } from '../src/model/factory';
 import { responsiveBaseWidth } from '../src/model/responsive';
+import { COMPONENT_DEFS, COMPONENT_MAP, propertyGroupsForComponent } from '../src/model/componentDefs';
+import { styleFromProps } from '../src/model/styleFromProps';
 
 let failures = 0;
 function assert(cond: boolean, msg: string) {
@@ -11,6 +13,22 @@ function assert(cond: boolean, msg: string) {
 }
 
 const s = useProjectStore.getState();
+
+// component-aware property profiles
+const groupNames = (type: string) => propertyGroupsForComponent(COMPONENT_MAP[type]).map((group) => group.group);
+assert(groupNames('text').includes('Typography'), 'text exposes typography customization');
+assert(groupNames('image').includes('Media'), 'image fields are categorized as media');
+assert(!groupNames('image').includes('Typography'), 'image omits irrelevant typography controls');
+assert(groupNames('textInput').includes('Form & Validation'), 'input fields are categorized as form properties');
+assert(!groupNames('hiddenField').includes('Layout'), 'hidden field omits visual layout controls');
+assert(COMPONENT_DEFS.every((definition) => groupNames(definition.type).includes('Effects')), 'every component exposes effects');
+const richCss = styleFromProps({
+  minHeight: '20px', backgroundImage: 'linear-gradient(red, blue)', fontStyle: 'italic',
+  outlineWidth: 2, outlineStyle: 'dotted', outlineColor: '#123456', filter: 'grayscale(1)',
+});
+assert(richCss['min-height'] === '20px' && richCss['font-style'] === 'italic', 'expanded sizing and typography map to CSS');
+assert(richCss['background-image']?.includes('linear-gradient') && richCss['outline-style'] === 'dotted', 'expanded appearance maps to CSS');
+assert(richCss.filter === 'grayscale(1)', 'universal filter effect maps to CSS');
 
 // pages
 s.addPage();
