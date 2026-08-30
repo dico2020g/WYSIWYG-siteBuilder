@@ -50,8 +50,8 @@ export function createProject(name = 'Untitled1'): Project {
     name,
     pages: [createPage('index', 'Untitled Page')],
     breakpoints: [
-      { id: 'bp_tablet', name: 'Tablet', maxWidth: 768, orientation: 'none', fontSize: null },
-      { id: 'bp_mobile', name: 'Mobile', maxWidth: 480, orientation: 'none', fontSize: null },
+      { id: 'bp_tablet', name: 'Tablet', maxWidth: 768, direction: 'max', orientation: 'none', fontSize: null },
+      { id: 'bp_mobile', name: 'Mobile', maxWidth: 480, direction: 'max', orientation: 'none', fontSize: null },
     ],
     breakpointMode: 'smaller',
     database: createDatabaseState(),
@@ -59,5 +59,18 @@ export function createProject(name = 'Untitled1'): Project {
 }
 
 export function sortBreakpoints(bps: Breakpoint[]): Breakpoint[] {
-  return [...bps].sort((a, b) => b.maxWidth - a.maxWidth);
+  return [...bps].sort((a, b) => {
+    const ad = a.direction ?? 'max';
+    const bd = b.direction ?? 'max';
+    if (ad !== bd) return ad === 'max' ? -1 : 1;
+    return ad === 'max' ? b.maxWidth - a.maxWidth : a.maxWidth - b.maxWidth;
+  });
+}
+
+export function breakpointDirection(bp: Breakpoint): 'max' | 'min' {
+  return bp.direction ?? 'max';
+}
+
+export function breakpointLabel(bp: Breakpoint): string {
+  return `${breakpointDirection(bp) === 'min' ? '≥' : '≤'} ${bp.maxWidth}px`;
 }

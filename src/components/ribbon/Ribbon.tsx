@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { COMPONENT_DEFS, TOOLBOX_GROUPS, toolboxGroup } from '../../model/componentDefs';
 import { useProjectStore } from '../../store/projectStore';
 import { responsiveBaseWidth } from '../../model/responsive';
+import { breakpointLabel } from '../../model/factory';
 import { openProject, saveProject, exportProject, previewProject } from '../../actions/fileActions';
 import { appConfirm } from '../../actions/dialogs';
 import { appPrompt } from '../../actions/promptDialog';
@@ -19,18 +20,30 @@ interface RibbonButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   active?: boolean;
+  /** when set, the button can be dragged onto the canvas to insert this type */
+  draggableType?: string;
 }
 
-function RibbonButton({ iconName, label, onClick, disabled, active }: RibbonButtonProps) {
+function RibbonButton({ iconName, label, onClick, disabled, active, draggableType }: RibbonButtonProps) {
   return (
     <button
       className={`ribbon-btn${active ? ' active' : ''}`}
       onClick={onClick}
       disabled={disabled}
       title={label}
+      draggable={!!draggableType && !disabled}
+      onDragStart={
+        draggableType
+          ? (e) => {
+              e.dataTransfer.setData('application/x-component-type', draggableType);
+              e.dataTransfer.setData('text/plain', draggableType);
+              e.dataTransfer.effectAllowed = 'copy';
+            }
+          : undefined
+      }
     >
       <span className="ribbon-btn-icon">
-        <AppIcon name={iconName ?? ribbonIconName(label)} size={36} />
+        <AppIcon name={iconName ?? ribbonIconName(label)} size={18} />
       </span>
       <span className="ribbon-btn-label">{label}</span>
     </button>
@@ -66,7 +79,7 @@ function RibbonGrid({ items }: { items: RibbonGridItem[] }) {
           disabled={it.disabled}
           onClick={it.onClick}
         >
-          <AppIcon name={it.iconName ?? ribbonIconName(it.label)} size={20} />
+          <AppIcon name={it.iconName ?? ribbonIconName(it.label)} size={16} />
         </button>
       ))}
     </div>
@@ -193,6 +206,8 @@ export default function Ribbon() {
   const setZoom = useProjectStore((s) => s.setZoom);
   const snapToGrid = useProjectStore((s) => s.snapToGrid);
   const toggleSnap = useProjectStore((s) => s.toggleSnap);
+  const selectionFrameGap = useProjectStore((s) => s.selectionFrameGap);
+  const setSelectionFrameGap = useProjectStore((s) => s.setSelectionFrameGap);
   const currentPageId = useProjectStore((s) => s.currentPageId);
   const pages = useProjectStore((s) => s.project.pages);
   const newProject = useProjectStore((s) => s.newProject);
@@ -426,7 +441,7 @@ export default function Ribbon() {
                 >
                   <option value="">Desktop</option>
                   {breakpoints.map((b) => (
-                    <option key={b.id} value={b.id}>{b.maxWidth}px</option>
+                    <option key={b.id} value={b.id}>{breakpointLabel(b)}</option>
                   ))}
                 </select>
               </label>
@@ -460,6 +475,7 @@ export default function Ribbon() {
                       label={def.label}
                       active={tool === def.type}
                       onClick={() => setTool(def.type)}
+                      draggableType={def.type}
                     />
                   ))}
                 </RibbonGroup>
@@ -535,6 +551,17 @@ export default function Ribbon() {
                 active={snapToGrid}
                 onClick={toggleSnap}
               />
+              <label className="ribbon-field" title="Gap between a selected control and its adjustment frame (min 2px)">
+                <span className="ribbon-field-label">Frame Gap (px)</span>
+                <input
+                  type="number"
+                  className="ribbon-select"
+                  min={2}
+                  max={24}
+                  value={selectionFrameGap}
+                  onChange={(e) => setSelectionFrameGap(Number(e.target.value))}
+                />
+              </label>
             </RibbonGroup>
             <RibbonGroup caption="Zoom">
               <RibbonButton icon="🔍+" label="Zoom In" onClick={() => setZoom(zoom + 0.25)} disabled={zoom >= 2} />

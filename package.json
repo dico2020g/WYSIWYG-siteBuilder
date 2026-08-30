@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "test": "esbuild test/smoke-model.ts --bundle --platform=node --format=cjs --outfile=test/smoke-model.cjs --external:electron && node test/smoke-model.cjs",
     "dist": "npm run build && electron-builder",
-    "dist:portable": "npm run build && electron-builder --win portable"
+    "dist:portable": "npm run build && electron-builder --win portable",
+    "dist:unpacked": "npm run build && electron-builder --win --x64 --config electron-builder.yml --targets win --x64 --publish never",
+    "dist:dir": "npm run build && electron-builder --win --x64 --dir --publish never"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

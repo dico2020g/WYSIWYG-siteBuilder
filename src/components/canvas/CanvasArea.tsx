@@ -7,12 +7,13 @@ import ContextMenu from './ContextMenu';
 import BottomPanel from './BottomPanel';
 import DatabaseWorkspace, { DB_TAB_META } from '../dialogs/DatabaseWorkspace';
 import { previewProject, exportProject } from '../../actions/fileActions';
-import { sortBreakpoints } from '../../model/factory';
+import { breakpointDirection, breakpointLabel, sortBreakpoints } from '../../model/factory';
 import { AppIcon } from '../icons/AppIcon';
 import type { GuideItem } from '../../model/types';
 
 type GuideOrientation = 'horizontal' | 'vertical';
 type MarqueeRect = { startX: number; startY: number; x: number; y: number; width: number; height: number };
+type DragCenter = { centerX: number; centerY: number } | null;
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -38,11 +39,16 @@ function guideGoverningBreakpointId(
 ): string | null {
   const target = breakpoints.find((b) => b.id === targetId);
   if (!target) return null;
+  const direction = breakpointDirection(target);
   let best: (typeof breakpoints)[number] | null = null;
   for (const b of breakpoints) {
-    if (b.maxWidth < target.maxWidth) continue;
+    if (breakpointDirection(b) !== direction) continue;
+    if (direction === 'max' && b.maxWidth < target.maxWidth) continue;
+    if (direction === 'min' && b.maxWidth > target.maxWidth) continue;
     if (!guide.overrides?.[b.id]) continue;
-    if (!best || b.maxWidth < best.maxWidth) best = b;
+    if (!best) best = b;
+    else if (direction === 'max' && b.maxWidth < best.maxWidth) best = b;
+    else if (direction === 'min' && b.maxWidth > best.maxWidth) best = b;
   }
   return best?.id ?? null;
 }
@@ -139,21 +145,30 @@ export default function CanvasArea() {
   const [workspaceWidth, setWorkspaceWidth] = useState(0);
   const [guideDrag, setGuideDrag] = useState<{ orientation: GuideOrientation; value: number } | null>(null);
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const [dragCenter, setDragCenter] = useState<DragCenter>(null);
   const suppressNextClickRef = useRef(false);
 
   const activeBp = sortedBreakpoints.find((b) => b.id === activeBreakpointId) ?? null;
-  // No breakpoint active: extend the page to the workspace's right edge at any zoom
-  // (48px ≈ margins + scrollbar). page.width stays the exported page width.
-  const fillWidth =
-    workspaceWidth > 0 ? Math.max(page.width, Math.floor((workspaceWidth - 48) / zoom)) : page.width;
+  // Default: canvas width = the actual workspace (screen) width. The authored
+  // page.width only bounds layout; visually the canvas spans the full display.
+  const screenWidth =
+    workspaceWidth > 0 ? Math.floor((workspaceWidth - 48) / zoom) : page.width;
+  const fillWidth = Math.max(page.width, screenWidth);
   const artboardWidth = activeBp ? activeBp.maxWidth : fillWidth;
+  // The width over which center guides/geometry are judged. Default = screen.
+  const exportWidth = activeBp ? activeBp.maxWidth : artboardWidth;
   // page.height is authoritative: the store auto-grows it when a component is
   // dragged past the bottom, and manual edits in Properties are respected as-is.
   const artboardHeight = page.height;
+  const centerGuideTolerance = Math.max(3, 5 / zoom);
+  const showVerticalCenterGuide = !!dragCenter && Math.abs(dragCenter.centerX - exportWidth / 2) <= centerGuideTolerance;
+  const showHorizontalCenterGuide = !!dragCenter && Math.abs(dragCenter.centerY - artboardHeight / 2) <= centerGuideTolerance;
   const baseWidth = responsiveBaseWidth(page);
   const resolvedGuides = (page.guides ?? []).map((guide) =>
     resolveGuide(guide, sortedBreakpoints, activeBreakpointId, baseWidth)
   );
+  // Page-bounds marker only meaningful for explicit breakpoint canvases.
+  const showPageBounds = false;
 
   useEffect(() => {
     const ws = workspaceRef.current;
@@ -191,7 +206,7 @@ export default function CanvasArea() {
       ctx.clearRect(0, 0, w, h);
       ctx.strokeStyle = '#9a9a9a';
       ctx.fillStyle = '#666666';
-      ctx.font = '9px "Segoe UI", Tahoma, sans-serif';
+      ctx.font = '10px Inter, "Segoe UI", Roboto, Arial, sans-serif';
       ctx.beginPath();
       const limit = horizontal ? w : h;
       for (let p = 0; p <= artboardLen; p += 10) {
@@ -201,12 +216,12 @@ export default function CanvasArea() {
         const tick = major ? 8 : 4;
         const px = Math.round(pos) + 0.5;
         if (horizontal) {
-          ctx.moveTo(px, 20);
-          ctx.lineTo(px, 20 - tick);
-          if (major) ctx.fillText(String(p), pos + 3, 9);
+          ctx.moveTo(px, 22);
+          ctx.lineTo(px, 22 - tick);
+          if (major) ctx.fillText(String(p), pos + 3, 10);
         } else {
-          ctx.moveTo(20, px);
-          ctx.lineTo(20 - tick, px);
+          ctx.moveTo(22, px);
+          ctx.lineTo(22 - tick, px);
           if (major) ctx.fillText(String(p), 3, pos - 3);
         }
       }
@@ -225,6 +240,15 @@ export default function CanvasArea() {
     ro.observe(ws);
     return () => ro.disconnect();
   }, [drawRulers]);
+
+  useEffect(() => {
+    const onCenterGuide = (ev: Event) => {
+      const detail = (ev as CustomEvent<DragCenter>).detail;
+      setDragCenter(detail ?? null);
+    };
+    window.addEventListener('sitebuilder:drag-center', onCenterGuide);
+    return () => window.removeEventListener('sitebuilder:drag-center', onCenterGuide);
+  }, []);
 
   /** Convert client (screen) coords to artboard coords, accounting for scroll, offset and zoom. */
   const toArtboard = (clientX: number, clientY: number): { x: number; y: number } => {
@@ -466,13 +490,13 @@ export default function CanvasArea() {
           <button
             className={
               'device-bar-btn icon-only' +
-              (activeBp && activeBp.maxWidth > 480 ? ' active' : '')
+              (activeBp && breakpointDirection(activeBp) === 'max' && activeBp.maxWidth > 480 ? ' active' : '')
             }
             title="Tablet"
             onClick={() => {
               const bp =
-                sortedBreakpoints.find((b) => b.maxWidth <= 768 && b.maxWidth > 480) ??
-                sortedBreakpoints.find((b) => b.maxWidth <= 768) ??
+                sortedBreakpoints.find((b) => breakpointDirection(b) === 'max' && b.maxWidth <= 768 && b.maxWidth > 480) ??
+                sortedBreakpoints.find((b) => breakpointDirection(b) === 'max' && b.maxWidth <= 768) ??
                 sortedBreakpoints[0];
               if (bp) setActiveBreakpoint(bp.id);
             }}
@@ -481,12 +505,12 @@ export default function CanvasArea() {
           </button>
           <button
             className={
-              'device-bar-btn icon-only' + (activeBp && activeBp.maxWidth <= 480 ? ' active' : '')
+              'device-bar-btn icon-only' + (activeBp && breakpointDirection(activeBp) === 'max' && activeBp.maxWidth <= 480 ? ' active' : '')
             }
             title="Mobile"
             onClick={() => {
               const bp =
-                sortedBreakpoints.find((b) => b.maxWidth <= 480) ?? sortedBreakpoints[sortedBreakpoints.length - 1];
+                sortedBreakpoints.find((b) => breakpointDirection(b) === 'max' && b.maxWidth <= 480) ?? sortedBreakpoints[sortedBreakpoints.length - 1];
               if (bp) setActiveBreakpoint(bp.id);
             }}
           >
@@ -592,6 +616,15 @@ export default function CanvasArea() {
               {guideDrag?.orientation === 'horizontal' && (
                 <div className="canvas-guide canvas-guide-h canvas-guide-preview" style={{ top: guideDrag.value, left: 0, width: artboardWidth }} />
               )}
+              {showVerticalCenterGuide && (
+                <div className="canvas-center-guide canvas-center-guide-v" style={{ left: exportWidth / 2, top: 0, height: artboardHeight }} />
+              )}
+              {showHorizontalCenterGuide && (
+                <div className="canvas-center-guide canvas-center-guide-h" style={{ top: artboardHeight / 2, left: 0, width: exportWidth }} />
+              )}
+              {showPageBounds && (
+                <div className="canvas-page-bounds" style={{ left: exportWidth, top: 0, height: artboardHeight }} />
+              )}
               {marquee && (
                 <div
                   className="canvas-selection-rect"
@@ -635,7 +668,7 @@ export default function CanvasArea() {
             className={'bp-chip' + (activeBreakpointId === bp.id ? ' active' : '')}
             onClick={() => setActiveBreakpoint(bp.id)}
           >
-            {bp.maxWidth}px
+            {breakpointLabel(bp)}
           </button>
         ))}
       </div>

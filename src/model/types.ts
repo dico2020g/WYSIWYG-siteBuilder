@@ -1,7 +1,8 @@
 export interface Breakpoint {
   id: string;
   name: string;
-  maxWidth: number; // px — applied via @media (max-width: Npx)
+  maxWidth: number; // px media threshold
+  direction?: 'max' | 'min'; // max = smaller screens, min = wider screens
   orientation?: 'none' | 'portrait' | 'landscape';
   fontSize?: number | null; // default font size in px, null = none
 }

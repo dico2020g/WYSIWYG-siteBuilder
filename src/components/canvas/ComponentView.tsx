@@ -6,19 +6,27 @@ import { styleFromProps, toReactStyle } from '../../model/styleFromProps';
 import { COMPONENT_MAP } from '../../model/componentDefs';
 import type { ComponentItem } from '../../model/types';
 import { pickImage } from '../../actions/imagePicker';
+import { transformPatch, readTransform } from '../../model/transform';
+import rotateHandleUrl from './icons/rotate_handle.png';
 
+// Square resize handles sit at edge midpoints (Figma-style); corners are rotate handles.
 const HANDLES = [
-  { dir: 'nw', cursor: 'nwse-resize' },
   { dir: 'n', cursor: 'ns-resize' },
-  { dir: 'ne', cursor: 'nesw-resize' },
   { dir: 'e', cursor: 'ew-resize' },
-  { dir: 'se', cursor: 'nwse-resize' },
   { dir: 's', cursor: 'ns-resize' },
-  { dir: 'sw', cursor: 'nesw-resize' },
   { dir: 'w', cursor: 'ew-resize' },
 ] as const;
 
-type HandleDir = (typeof HANDLES)[number]['dir'];
+const CORNERS = [
+  { dir: 'nw', cursor: 'nwse-resize' },
+  { dir: 'ne', cursor: 'nesw-resize' },
+  { dir: 'se', cursor: 'nwse-resize' },
+  { dir: 'sw', cursor: 'nesw-resize' },
+] as const;
+
+type HandleDir =
+  | (typeof HANDLES)[number]['dir']
+  | (typeof CORNERS)[number]['dir'];
 
 /** Types whose inner form control receives the prop styles directly (avoid double borders). */
 const FORM_CONTROL_TYPES = [
@@ -284,8 +292,15 @@ function renderLayout(type: string, props: Record<string, any>): ReactNode {
 function renderBasic(type: string, props: Record<string, any>): ReactNode {
   switch (type) {
     case 'text':
-    case 'paragraph':
-      return <div className="cv-fill" style={{ whiteSpace: 'pre-wrap' }}>{String(props.text ?? '')}</div>;
+    case 'paragraph': {
+      const vertical = String(props.contentVerticalAlign ?? 'top');
+      const justifyContent = vertical === 'middle' ? 'center' : vertical === 'bottom' ? 'flex-end' : 'flex-start';
+      return (
+        <div className="cv-fill" style={{ display: 'flex', flexDirection: 'column', justifyContent, whiteSpace: 'pre-wrap' }}>
+          {String(props.text ?? '')}
+        </div>
+      );
+    }
 
     case 'heading': {
       const lvl = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(String(props.level)) ? String(props.level) : 'h1';
@@ -1313,6 +1328,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
   const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const zoom = useProjectStore((s) => s.zoom);
   const snapToGrid = useProjectStore((s) => s.snapToGrid);
+  const selectionFrameGap = useProjectStore((s) => s.selectionFrameGap);
   const gridSize = useProjectStore((s) => s.gridSize);
   const selectComponent = useProjectStore((s) => s.selectComponent);
   const selectComponents = useProjectStore((s) => s.selectComponents);
@@ -1388,7 +1404,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
       .filter((c) => dragIds.includes(c.id) && !c.locked)
       .map((c) => {
         const cEff = c.id === component.id ? eff : effectiveComponent(c, breakpoints, activeBreakpointId, baseWidth);
-        return { id: c.id, x: cEff.x, y: cEff.y };
+        return { id: c.id, x: cEff.x, y: cEff.y, width: cEff.width, height: cEff.height };
       });
     const onMove = (ev: PointerEvent) => {
       const dx = (ev.clientX - startClientX) / zoom;
@@ -1396,10 +1412,17 @@ export default function ComponentView({ component }: { component: ComponentItem 
       startPositions.forEach((pos) => {
         setGeometry(pos.id, { x: snapVal(pos.x + dx), y: snapVal(pos.y + dy) });
       });
+      const moved = startPositions.map((pos) => ({ ...pos, x: snapVal(pos.x + dx), y: snapVal(pos.y + dy) }));
+      const minX = Math.min(...moved.map((pos) => pos.x));
+      const minY = Math.min(...moved.map((pos) => pos.y));
+      const maxX = Math.max(...moved.map((pos) => pos.x + pos.width));
+      const maxY = Math.max(...moved.map((pos) => pos.y + pos.height));
+      window.dispatchEvent(new CustomEvent('sitebuilder:drag-center', { detail: { centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 } }));
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.dispatchEvent(new CustomEvent('sitebuilder:drag-center', { detail: null }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -1432,6 +1455,50 @@ export default function ComponentView({ component }: { component: ComponentItem 
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  // Rotation drag state, driven from the circular corner handles.
+  const transformState = readTransform(eff.props.transform);
+  const currentRotation = transformState.rotate || 0;
+
+  const startRotate = (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (locked) return;
+    // Keep the pointer captured on the handle so the drag never loses focus.
+    const handleEl = e.currentTarget as HTMLElement;
+    try { handleEl.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    // Anchor the rotation center in *screen* pixels so zoom/offset don't skew
+    // the angle. getBoundingClientRect already includes the canvas transform.
+    const rootEl = handleEl.closest('.canvas-component') as HTMLElement | null;
+    const rect = rootEl ? rootEl.getBoundingClientRect() : null;
+    const screenCenterX = rect ? rect.left + rect.width / 2 : e.clientX;
+    const screenCenterY = rect ? rect.top + rect.height / 2 : e.clientY;
+    const startAngle = Math.atan2(e.clientY - screenCenterY, e.clientX - screenCenterX);
+    // Snapshot rotation once at drag start; apply continuous deltas from there.
+    const startRotate0 = transformState.rotate ?? 0;
+    let appliedDeg = 0;
+    const onMove = (ev: PointerEvent) => {
+      const currentAngle = Math.atan2(ev.clientY - screenCenterY, ev.clientX - screenCenterX);
+      let deltaDeg = ((currentAngle - startAngle) * 180) / Math.PI;
+      // Normalize to (-180, 180] to avoid wrap-around jumps.
+      deltaDeg = ((deltaDeg + 180) % 360 + 360) % 360 - 180;
+      // Smooth free rotation; hold Shift to snap to 15° increments.
+      if (ev.shiftKey) deltaDeg = Math.round(deltaDeg / 15) * 15;
+      else deltaDeg = Math.round(deltaDeg * 10) / 10;
+      if (deltaDeg !== appliedDeg) {
+        appliedDeg = deltaDeg;
+        updateProps(component.id, transformPatch(eff.props.transform, (t) => { t.rotate = startRotate0 + deltaDeg; }));
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      try { handleEl.releasePointerCapture(e.pointerId); } catch { /* noop */ }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -1488,6 +1555,9 @@ export default function ComponentView({ component }: { component: ComponentItem 
         top: eff.y,
         width: eff.width,
         height: eff.height,
+        ['--sel-gap' as any]: `${selectionFrameGap}px`,
+        ['--sel-radius' as any]: '0px',
+        position: 'relative',
         zIndex: props.zIndex !== undefined && props.zIndex !== '' ? Number(props.zIndex) : undefined,
         transform: wrapperTransform,
         transformOrigin: wrapperTransform ? 'center center' : undefined,
@@ -1528,16 +1598,32 @@ export default function ComponentView({ component }: { component: ComponentItem 
       )}
       {selected && locked && <div className="cv-lock">🔒</div>}
       {component.props?.protected && <div className="cv-protected" title="Protected content (excluded from export)">🛈</div>}
-      {selected &&
-        !locked &&
-        HANDLES.map((h) => (
-          <div
-            key={h.dir}
-            className={`resize-handle rh-${h.dir}`}
-            style={{ cursor: h.cursor }}
-            onPointerDown={startResize(h.dir)}
-          />
-        ))}
+      {selected && !locked && (
+        <>
+          <div className="cv-select-frame" />
+          {HANDLES.map((h) => (
+            <div
+              key={h.dir}
+              className={`resize-handle rh-${h.dir}`}
+              style={{ cursor: h.cursor }}
+              onPointerDown={startResize(h.dir)}
+            />
+          ))}
+          {CORNERS.map((c) => (
+            <div
+              key={c.dir}
+              className={`rotate-handle rot-${c.dir}`}
+              title="Drag to rotate"
+              onPointerDown={startRotate}
+            >
+              <img src={rotateHandleUrl} alt="" draggable={false} />
+            </div>
+          ))}
+          {currentRotation !== 0 && (
+            <div className="cv-rot-badge">{Math.round(currentRotation)}°</div>
+          )}
+        </>
+      )}
     </div>
   );
 }

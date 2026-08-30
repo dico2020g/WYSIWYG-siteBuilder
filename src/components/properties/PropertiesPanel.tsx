@@ -4,11 +4,14 @@ import { COMPONENT_MAP, COMMON_GROUPS, EVENT_NAMES, propertyGroupsForComponent }
 import { responsiveBaseWidth } from '../../model/responsive';
 import type { PropField } from '../../model/componentDefs';
 import type { Project } from '../../model/types';
+import { readTransform, buildTransform, transformPatch } from '../../model/transform';
 import CodeEditor from '../code/CodeEditor';
 import DataSourceTree from '../dialogs/DataSourceBrowser';
 import SiteManager from '../sitemanager/SiteManager';
 
 type Tab = 'project' | 'props' | 'events' | 'datasource';
+
+const HEADING_FONT_SIZES: Record<string, number> = { h1: 32, h2: 24, h3: 20, h4: 18, h5: 16, h6: 14 };
 
 function pageOf(s: { project: Project; currentPageId: string }) {
   return s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0];
@@ -208,6 +211,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const setGeometry = useProjectStore((s) => s.setGeometry);
   const clearOverride = useProjectStore((s) => s.clearOverride);
   const openCodeDialog = useProjectStore((s) => s.openCodeDialog);
+  const arrangeSelection = useProjectStore((s) => s.arrangeSelection);
 
   if (!comp) return null;
   const eff = effectiveComponent(comp, breakpoints, bpId, responsiveBaseWidth(page));
@@ -218,6 +222,13 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   /** Render one PropField row; geometry fields bind to setGeometry, the rest to updateProps. */
   const renderField = (f: PropField) => {
     if (!matches(filter, f.label)) return null;
+    const commitField = (v: unknown) => {
+      if (comp.type === 'heading' && f.key === 'level') {
+        updateProps(id, { level: v, fontSize: HEADING_FONT_SIZES[String(v)] ?? 32 });
+        return;
+      }
+      updateProps(id, { [f.key]: v });
+    };
     if (f.bind === 'geometry') {
       const key = f.key as 'x' | 'y' | 'width' | 'height';
       return (
@@ -253,7 +264,7 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
           <FieldControl
             field={f}
             value={eff.props[f.key]}
-            onCommit={(v) => updateProps(id, { [f.key]: v })}
+            onCommit={commitField}
           />
         )}
       </Row>
@@ -264,6 +275,25 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
   const advancedFields = COMMON_GROUPS.find((group) => group.group === 'Advanced')?.fields ?? [];
   const advancedRows = advancedFields.map(renderField).filter(Boolean);
   const defaultName = def ? `${def.label}1` : comp.id;
+
+  const transformState = readTransform(eff.props.transform);
+  const currentRotation = transformState.rotate || 0;
+
+  /** Set a transform extra token (scale/skew) or clear it when empty. */
+  const setTransformToken = (key: string, value: string) => {
+    updateProps(id, transformPatch(eff.props.transform, (t) => {
+      t.other = t.other.filter((tok) => !tok.startsWith(`${key}(`));
+      if (value.trim() !== '') t.other.push(`${key}(${value.trim()})`);
+    }));
+  };
+  // Read back current scale/skew values for the inputs.
+  const tokenVal = (name: string): string => {
+    const tok = transformState.other.find((t2) => t2.startsWith(`${name}(`));
+    if (!tok) return '';
+    const m = tok.match(new RegExp(`^${name}\\((.*)\\)$`));
+    return m ? m[1] : '';
+  };
+  const transformOrigin = String(eff.props.transformOrigin ?? 'center center');
 
   return (
     <div>
@@ -289,6 +319,89 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
         {advancedRows}
       </GroupSection>
 
+      {/* Transform */}
+      <GroupSection name="Transform" filter={filter}>
+        {matches(filter, 'Rotation') && (
+          <Row label="Rotation">
+            <div className="props-rotation" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                value={currentRotation}
+                onChange={(e) => {
+                  const degN = Number(e.target.value) || 0;
+                  updateProps(id, transformPatch(eff.props.transform, (t) => { t.rotate = degN; }));
+                }}
+                style={{ width: 70, padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 13 }}
+              />
+              <span style={{ fontSize: 13, color: '#6b7280' }}>°</span>
+              <button
+                type="button"
+                onClick={() => updateProps(id, transformPatch(eff.props.transform, (t) => { t.rotate = 0; }))}
+                title="Reset rotation"
+                style={{ padding: '4px 12px', border: '1px solid #d1d5db', borderRadius: 4, background: '#ffffff', cursor: 'pointer', fontSize: 13 }}
+              >
+                Reset
+              </button>
+            </div>
+          </Row>
+        )}
+        {matches(filter, 'Scale X') && (
+          <Row label="Scale X">
+            <input type="text" value={tokenVal('scaleX')} placeholder="1"
+              onChange={(e) => setTransformToken('scaleX', e.target.value)} />
+          </Row>
+        )}
+        {matches(filter, 'Scale Y') && (
+          <Row label="Scale Y">
+            <input type="text" value={tokenVal('scaleY')} placeholder="1"
+              onChange={(e) => setTransformToken('scaleY', e.target.value)} />
+          </Row>
+        )}
+        {matches(filter, 'Skew X') && (
+          <Row label="Skew X">
+            <input type="text" value={tokenVal('skewX')} placeholder="0deg"
+              onChange={(e) => setTransformToken('skewX', e.target.value)} />
+          </Row>
+        )}
+        {matches(filter, 'Skew Y') && (
+          <Row label="Skew Y">
+            <input type="text" value={tokenVal('skewY')} placeholder="0deg"
+              onChange={(e) => setTransformToken('skewY', e.target.value)} />
+          </Row>
+        )}
+        {matches(filter, 'Flip Horizontal') && (
+          <Row label="Flip Horizontal">
+            <input type="checkbox" className="props-checkbox" checked={transformState.flipH}
+              onChange={(e) => updateProps(id, transformPatch(eff.props.transform, (t) => { t.flipH = e.target.checked; }))} />
+          </Row>
+        )}
+        {matches(filter, 'Flip Vertical') && (
+          <Row label="Flip Vertical">
+            <input type="checkbox" className="props-checkbox" checked={transformState.flipV}
+              onChange={(e) => updateProps(id, transformPatch(eff.props.transform, (t) => { t.flipV = e.target.checked; }))} />
+          </Row>
+        )}
+        {matches(filter, 'Transform Origin') && (
+          <Row label="Transform Origin">
+            <select value={transformOrigin}
+              onChange={(e) => updateProps(id, { transformOrigin: e.target.value })}>
+              {['center center', 'left top', 'center top', 'right top', 'left center', 'right center', 'left bottom', 'center bottom', 'right bottom'].map((o2) => (
+                <option key={o2} value={o2}>{o2}</option>
+              ))}
+            </select>
+          </Row>
+        )}
+        {matches(filter, 'Reset Transform') && (
+          <Row label="Reset Transform">
+            <button type="button"
+              onClick={() => updateProps(id, { transform: '', transformOrigin: '' })}
+              style={{ padding: '4px 12px', border: '1px solid #d1d5db', borderRadius: 4, background: '#ffffff', cursor: 'pointer', fontSize: 13 }}>
+              Reset All
+            </button>
+          </Row>
+        )}
+      </GroupSection>
+
       {componentGroups.map(({ group, fields }) => {
         const rows = fields.map(renderField).filter(Boolean);
         return rows.length > 0 ? (
@@ -297,6 +410,82 @@ function ComponentProps({ id, filter }: { id: string; filter: string }) {
           </GroupSection>
         ) : null;
       })}
+
+      {/* Content alignment (positions content inside the control; does NOT move the control) */}
+      <GroupSection name="Content Alignment" filter={filter}>
+        {(() => {
+          // Content alignment lives in two props: horizontal (text-align) and
+          // vertical (a flex justify on the content box). Never touches X/Y/W/H.
+          const horiz = String(eff.props.textAlign ?? 'left');
+          const vert = String(eff.props.contentVerticalAlign ?? 'top');
+          const setHoriz = (v: string) => updateProps(id, { textAlign: v });
+          const setVert = (v: string) => updateProps(id, { contentVerticalAlign: v });
+          const cell = (h: string, v: string, glyph: string, title: string) => {
+            const active = horiz === h && vert === v;
+            return (
+              <button key={title} type="button" title={title}
+                onClick={() => { setHoriz(h); setVert(v); }}
+                style={{
+                  width: 34, height: 30, border: active ? '2px solid #1d6ff2' : '1px solid #d1d5db',
+                  borderRadius: 4, background: active ? '#eaf2ff' : '#ffffff', cursor: 'pointer', fontSize: 14,
+                }}>
+                {glyph}
+              </button>
+            );
+          };
+          const glyphFor = (h: string, v: string) => {
+            const vg = v === 'top' ? '⤒' : v === 'middle' ? '↔' : '⤓';
+            const hg = h === 'left' ? '⇤' : h === 'center' ? '⬌' : '⇥';
+            return `${vg}${hg}`;
+          };
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {matches(filter, 'Content Alignment') && (
+                <Row label="Position">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 34px)', gap: 4 }}>
+                    {(['top', 'middle', 'bottom'] as const).map((v) =>
+                      (['left', 'center', 'right'] as const).map((h) =>
+                        cell(h, v, glyphFor(h, v), `${v} ${h}`)
+                      )
+                    )}
+                  </div>
+                </Row>
+              )}
+              {matches(filter, 'Justify') && (
+                <Row label="Justify Text">
+                  <input type="checkbox" className="props-checkbox"
+                    checked={horiz === 'justify'}
+                    onChange={(e) => setHoriz(e.target.checked ? 'justify' : 'left')} />
+                </Row>
+              )}
+              <div style={{ fontSize: 11, color: '#6b7280' }}>
+                Positions the content inside the control's box. The control stays at X={eff.x}, Y={eff.y} — only its content moves.
+              </div>
+            </div>
+          );
+        })()}
+      </GroupSection>
+
+      {/* Layer order */}
+      <GroupSection name="Layer" filter={filter}>
+        {matches(filter, 'Layer Order') && (
+          <Row label="Order">
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {([
+                ['⇤ Front', () => arrangeSelection('front'), 'Bring to Front'],
+                ['↑ Forward', () => arrangeSelection('forward'), 'Bring Forward'],
+                ['↓ Backward', () => arrangeSelection('backward'), 'Send Backward'],
+                ['⇥ Back', () => arrangeSelection('back'), 'Send to Back'],
+              ] as [string, () => void, string][]).map(([label, fn, title]) => (
+                <button key={label} type="button" title={title} onClick={fn}
+                  style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, background: '#ffffff', cursor: 'pointer', fontSize: 12 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Row>
+        )}
+      </GroupSection>
 
     </div>
   );

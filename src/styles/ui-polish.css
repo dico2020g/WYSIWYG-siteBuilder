@@ -1,7 +1,6 @@
 /* Shared interaction geometry across the desktop UI. */
 :where(button, input, select, textarea) {
-  border-radius: 5px !important;
-  padding: 5px !important;
+  border-radius: var(--ui-radius);
 }
 
 :where(
@@ -12,14 +11,11 @@
   .context-menu-item,
   .bottom-tab
 ) {
-  border-radius: 5px !important;
-  padding: 5px !important;
+  border-radius: var(--ui-radius);
 }
 
 :where(.toolbox-item, .block-card, .tree-node) {
-  border-radius: 5px !important;
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
+  border-radius: var(--ui-radius);
   margin: 1px 5px;
   width: calc(100% - 10px);
 }

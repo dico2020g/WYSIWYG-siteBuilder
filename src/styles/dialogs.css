@@ -34,7 +34,7 @@
 
 .dlg-title {
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--ui-title);
 }
 
 .dlg-close {
@@ -53,11 +53,12 @@
 }
 
 .dlg-body {
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow: auto;
+  font-size: var(--ui-base);
 }
 
 .dlg-actions {
@@ -67,10 +68,13 @@
 }
 
 .dlg-actions button {
-  min-width: 70px;
-  padding: 4px 12px;
+  min-width: 76px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: var(--ui-sm);
+  font-weight: 500;
   border: 1px solid #adadad;
-  border-radius: 2px;
+  border-radius: var(--ui-radius);
   background: #f5f5f5;
   cursor: pointer;
 }
@@ -106,6 +110,8 @@
 
 .dlg-field > label {
   user-select: none;
+  font-size: var(--ui-label);
+  font-weight: 500;
 }
 
 .dlg-field-row {
@@ -118,9 +124,11 @@
 .dlg-field-row select {
   flex: 1;
   min-width: 0;
-  padding: 3px 6px;
-  border: 1px solid #adadad;
-  border-radius: 2px;
+  height: var(--ui-input-h);
+  padding: 4px 8px;
+  font-size: var(--ui-sm);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
   background: #ffffff;
 }
 

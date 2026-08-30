@@ -16,11 +16,12 @@
 .ribbon-tab {
   border: none;
   background: none;
-  min-width: 74px;
-  padding: 10px 14px 9px;
-  font-size: 14px;
+  min-width: 64px;
+  padding: 8px 12px 7px;
+  font-size: var(--ui-tab);
+  font-weight: 500;
   cursor: pointer;
-  color: #1c2738;
+  color: var(--ui-text);
   border-bottom: 3px solid transparent;
   position: relative;
 }
@@ -29,7 +30,7 @@
   color: #111827;
   font-weight: 600;
   background: #ffffff;
-  border-bottom-color: #1677ff;
+  border-bottom-color: var(--ui-accent);
 }
 .ribbon-content {
   display: flex;
@@ -38,9 +39,9 @@
   background:
     radial-gradient(circle at 15% 0%, rgba(22, 119, 255, 0.08), transparent 28%),
     linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
-  padding: 8px 12px 5px;
+  padding: 6px 8px 4px;
   border-bottom: 1px solid #d8e0eb;
-  height: 112px;
+  height: 86px;
   flex: none;
   overflow-x: auto;
   overflow-y: hidden;
@@ -48,7 +49,7 @@
 .ribbon-group {
   display: flex;
   flex-direction: column;
-  padding: 0 12px;
+  padding: 0 8px;
   border-right: 1px solid #e5ebf3;
   min-width: 0;
   flex-shrink: 0;
@@ -63,7 +64,7 @@
   min-height: 0;
 }
 .ribbon-group-label, .ribbon-group-caption {
-  font-size: 12px;
+  font-size: var(--ui-tiny);
   color: #667085;
   text-align: center;
   padding-top: 5px;
@@ -76,18 +77,18 @@
   align-items: center;
   justify-content: flex-start;
   gap: 3px;
-  min-width: 58px;
-  padding: 5px 8px 4px;
+  min-width: 50px;
+  padding: 5px 6px 4px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--ui-radius);
   background: none;
   cursor: pointer;
-  font-size: 13px;
-  color: #172033;
+  font-size: var(--ui-sm);
+  color: var(--ui-text);
   line-height: 1.15;
   text-align: center;
   white-space: normal;
-  max-width: 92px;
+  max-width: 84px;
 }
 .ribbon-btn:hover:not(:disabled) {
   background: #eef6ff;
@@ -96,7 +97,7 @@
 }
 .ribbon-btn:active:not(:disabled), .ribbon-btn.active {
   background: linear-gradient(180deg, #dcecff 0%, #cfe5ff 100%);
-  border-color: #1677ff;
+  border-color: var(--ui-accent);
   color: #064fb1;
 }
 .ribbon-btn:disabled { opacity: 0.45; cursor: default; }
@@ -104,28 +105,31 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 42px;
+  width: 36px;
+  height: 34px;
   line-height: 1;
 }
 .ribbon-btn-icon svg {
   display: block;
+  width: 18px;
+  height: 18px;
 }
-.ribbon-label, .ribbon-btn-label { font-size: 13px; }
-.ribbon-zoom-label { align-self: center; font-size: 13px; color: #555; padding: 0 6px; }
+.ribbon-label, .ribbon-btn-label { font-size: var(--ui-sm); font-weight: 500; }
+.ribbon-zoom-label { align-self: center; font-size: var(--ui-sm); color: var(--ui-text-2); padding: 0 6px; }
 .ribbon-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 6px 6px 0;
+  padding: 4px 6px 0;
   flex: 1;
 }
-.ribbon-field-label { font-size: 12px; color: #666; }
+.ribbon-field-label { font-size: var(--ui-tiny); color: #667085; font-weight: 500; }
 .ribbon-select {
-  padding: 5px 24px 5px 8px;
+  height: var(--ui-input-h);
+  padding: 4px 24px 4px 8px;
   border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--ui-radius);
+  font-size: var(--ui-sm);
   background: #fff;
   min-width: 110px;
 }
@@ -138,7 +142,7 @@
 .ribbon-grid {
   display: grid;
   grid-template-columns: repeat(3, 28px);
-  grid-auto-rows: 26px;
+  grid-auto-rows: 28px;
   gap: 2px;
   align-content: center;
   align-self: center;

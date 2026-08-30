@@ -1,15 +1,40 @@
 /* ============ global ============ */
+:root {
+  /* Design tokens — compact desktop-class typography & spacing */
+  --ui-font: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  --ui-base: 12px;
+  --ui-sm: 11px;
+  --ui-tiny: 10px;
+  --ui-title: 16px;        /* Level 1 — application */
+  --ui-panel-title: 14px;  /* Level 2 — panel */
+  --ui-tab: 11px;          /* Level 3 — tabs */
+  --ui-section: 10px;      /* Level 4 — section heading */
+  --ui-label: 11px;        /* Level 5 — property label */
+  --ui-helper: 10px;       /* Level 6 — helper */
+  --ui-radius: 5px;
+  --ui-gap: 4px;
+  --ui-gap-lg: 8px;
+  --ui-gap-section: 12px;
+  --ui-input-h: 28px;
+  --ui-toolbar-h: 42px;
+  --ui-statusbar-h: 25px;
+  --ui-accent: #1d6ff2;
+  --ui-text: #17212b;
+  --ui-text-2: #475467;
+  --ui-border: #cbd5e1;
+  --ui-border-soft: #e5ebf3;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; overflow: hidden; }
 body {
-  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-  font-size: 14px;
-  color: #172033;
+  font-family: var(--ui-font);
+  font-size: var(--ui-base);
+  color: var(--ui-text);
   user-select: none;
   background: #111827;
 }
-button { font-family: inherit; font-size: 14px; }
-input, select, textarea { font-family: inherit; font-size: 14px; }
+button { font-family: inherit; font-size: var(--ui-sm); }
+input, select, textarea { font-family: inherit; font-size: var(--ui-sm); }
 
 .app-shell {
   display: flex;
@@ -101,10 +126,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-header {
   display: flex; align-items: center; justify-content: space-between;
-  min-height: 32px;
-  padding: 0 10px; font-weight: 600; font-size: 15px;
+  min-height: 40px;
+  padding: 0 10px; font-weight: 600; font-size: var(--ui-panel-title);
   background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
   border-bottom: 1px solid #dce3ec;
-  color: #162033;
+  color: var(--ui-text);
 }
 .panel-body { flex: 1; overflow: auto; min-height: 0; }

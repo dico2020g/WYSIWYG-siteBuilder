@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ComponentItem, ComponentOverride, DatabaseState, DbConnection, DbSqlObject, DbTable, Page, Project, Breakpoint, GuideItem, GuideOverride } from '../model/types';
-import { createDatabaseState, createPage, createProject, sortBreakpoints, uid } from '../model/factory';
+import { breakpointDirection, createDatabaseState, createPage, createProject, sortBreakpoints, uid } from '../model/factory';
 import { COMPONENT_MAP } from '../model/componentDefs';
 import { resolveComponent, resolveComponentHidden, responsiveBaseWidth, snapshotOverride } from '../model/responsive';
 import { transformPatch } from '../model/transform';
@@ -28,6 +28,7 @@ export interface ContextMenuState {
 export interface BreakpointInput {
   id?: string;
   maxWidth: number;
+  direction: 'max' | 'min';
   orientation: 'none' | 'portrait' | 'landscape';
   fontSize: number | null;
 }
@@ -42,6 +43,8 @@ interface ProjectState {
   zoom: number; // 0.25 .. 2
   snapToGrid: boolean;
   gridSize: number;
+  /** Gap in px between a selected component and its adjustment frame (min 2). */
+  selectionFrameGap: number;
   filePath: string | null;
   dirty: boolean;
   tool: CanvasTool;
@@ -175,6 +178,7 @@ interface ProjectState {
   // view
   setZoom: (zoom: number) => void;
   toggleSnap: () => void;
+  setSelectionFrameGap: (gap: number) => void;
 }
 
 function currentPage(state: ProjectState): Page {
@@ -212,11 +216,16 @@ function snapshotAtBreakpoint(c: ComponentItem, breakpoints: Breakpoint[], break
 function guideGoverningBreakpointId(guide: GuideItem, breakpoints: Breakpoint[], targetId: string): string | null {
   const target = breakpoints.find((b) => b.id === targetId);
   if (!target) return null;
+  const direction = breakpointDirection(target);
   let best: Breakpoint | null = null;
   for (const b of breakpoints) {
-    if (b.maxWidth < target.maxWidth) continue;
+    if (breakpointDirection(b) !== direction) continue;
+    if (direction === 'max' && b.maxWidth < target.maxWidth) continue;
+    if (direction === 'min' && b.maxWidth > target.maxWidth) continue;
     if (!guide.overrides?.[b.id]) continue;
-    if (!best || b.maxWidth < best.maxWidth) best = b;
+    if (!best) best = b;
+    else if (direction === 'max' && b.maxWidth < best.maxWidth) best = b;
+    else if (direction === 'min' && b.maxWidth > best.maxWidth) best = b;
   }
   return best?.id ?? null;
 }
@@ -268,6 +277,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     zoom: 1,
     snapToGrid: true,
     gridSize: 10,
+    selectionFrameGap: 5,
     filePath: null,
     dirty: false,
     tool: 'pointer',
@@ -293,7 +303,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         // merge db defaults so projects saved before new db fields existed still load
         project: {
           ...project,
-          breakpoints: sortBreakpoints(project.breakpoints ?? []),
+          breakpoints: sortBreakpoints((project.breakpoints ?? []).map((bp) => ({ ...bp, direction: bp.direction ?? 'max' }))),
           database: { ...createDatabaseState(), ...project.database },
         },
         currentPageId: project.pages[0]?.id ?? '',
@@ -1081,7 +1091,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           ...s.project,
           breakpoints: sortBreakpoints([
             ...s.project.breakpoints,
-            { id: uid('bp'), name, maxWidth, orientation: 'none', fontSize: null },
+            { id: uid('bp'), name, maxWidth, direction: 'max', orientation: 'none', fontSize: null },
           ]),
         },
         dirty: true,
@@ -1144,7 +1154,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
               breakpoints: sortBreakpoints(
                 s.project.breakpoints.map((b) =>
                   b.id === bp.id
-                    ? { ...b, maxWidth: bp.maxWidth, orientation: bp.orientation, fontSize: bp.fontSize }
+                    ? { ...b, maxWidth: bp.maxWidth, direction: bp.direction, orientation: bp.orientation, fontSize: bp.fontSize }
                     : b
                 )
               ),
@@ -1154,8 +1164,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }
         const created = {
           id: uid('bp'),
-          name: `${bp.maxWidth}px`,
+          name: `${bp.direction === 'min' ? '≥' : '≤'} ${bp.maxWidth}px`,
           maxWidth: bp.maxWidth,
+          direction: bp.direction,
           orientation: bp.orientation,
           fontSize: bp.fontSize,
         };
@@ -1189,6 +1200,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     setZoom: (zoom) => set({ zoom: Math.min(2, Math.max(0.25, zoom)) }),
     toggleSnap: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+    setSelectionFrameGap: (gap) =>
+      set({ selectionFrameGap: Math.min(24, Math.max(2, Math.round(gap) || 5)) }),
 
     // ---- database workspace ----
     openDatabase: (page) =>

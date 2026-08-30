@@ -3,10 +3,8 @@ import type { Breakpoint, ComponentItem, ComponentOverride, Page } from './types
 /**
  * Responsive cascade — WYSIWYG Web Builder semantics:
  *
- * - The Default (base) design covers every screen from the top down to the
- *   widest breakpoint.
- * - A breakpoint's arrangement covers all screens equal to or smaller than its
- *   maxWidth, down to the next narrower breakpoint.
+ * - Max-width breakpoints cover screens equal to or smaller than their width.
+ * - Min-width breakpoints cover screens equal to or larger than their width.
  * - A change made at one breakpoint propagates to all narrower breakpoints,
  *   EXCEPT elements that have their own override there: once an element is
  *   touched at a breakpoint it becomes independent of the layers above
@@ -14,9 +12,11 @@ import type { Breakpoint, ComponentItem, ComponentOverride, Page } from './types
  *   snapshot of the resolved state on first edit — see snapshotOverride().
  */
 
-/** Id of the breakpoint whose override governs the component at `targetId`:
- *  the narrowest breakpoint with maxWidth >= target.maxWidth that has an
- *  override for this component. Null when no layer above touches it. */
+function bpDirection(bp: Breakpoint): 'max' | 'min' {
+  return bp.direction ?? 'max';
+}
+
+/** Id of the breakpoint whose override governs the component at `targetId`. */
 export function governingBreakpointId(
   c: ComponentItem,
   breakpoints: Breakpoint[],
@@ -24,11 +24,16 @@ export function governingBreakpointId(
 ): string | null {
   const target = breakpoints.find((b) => b.id === targetId);
   if (!target) return null;
+  const direction = bpDirection(target);
   let best: Breakpoint | null = null;
   for (const b of breakpoints) {
-    if (b.maxWidth < target.maxWidth) continue; // narrower layers never propagate up
+    if (bpDirection(b) !== direction) continue;
+    if (direction === 'max' && b.maxWidth < target.maxWidth) continue; // narrower layers never propagate up
+    if (direction === 'min' && b.maxWidth > target.maxWidth) continue; // wider layers never propagate down
     if (!c.overrides[b.id]) continue;
-    if (!best || b.maxWidth < best.maxWidth) best = b;
+    if (!best) best = b;
+    else if (direction === 'max' && b.maxWidth < best.maxWidth) best = b;
+    else if (direction === 'min' && b.maxWidth > best.maxWidth) best = b;
   }
   return best ? best.id : null;
 }
@@ -97,11 +102,16 @@ export function resolveComponentHidden(
   if (!targetId) return false;
   const target = breakpoints.find((b) => b.id === targetId);
   if (!target) return false;
+  const direction = bpDirection(target);
   let best: Breakpoint | null = null;
   for (const b of breakpoints) {
-    if (b.maxWidth < target.maxWidth) continue;
+    if (bpDirection(b) !== direction) continue;
+    if (direction === 'max' && b.maxWidth < target.maxWidth) continue;
+    if (direction === 'min' && b.maxWidth > target.maxWidth) continue;
     if (!c.overrides[b.id] && !(c.hiddenIn ?? []).includes(b.id)) continue;
-    if (!best || b.maxWidth < best.maxWidth) best = b;
+    if (!best) best = b;
+    else if (direction === 'max' && b.maxWidth < best.maxWidth) best = b;
+    else if (direction === 'min' && b.maxWidth > best.maxWidth) best = b;
   }
   if (!best) return false;
   const ov = c.overrides[best.id];

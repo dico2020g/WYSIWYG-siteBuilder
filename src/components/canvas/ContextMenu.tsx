@@ -261,7 +261,7 @@ export default function ContextMenu() {
       { icon: 'animations', label: 'Object Animations...', onClick: doObjectAnimation },
       { icon: 'code', label: 'Page HTML / Code...', onClick: doPageHtml },
       'sep',
-      { icon: 'saveBlock', label: 'Save As Block…', onClick: doSaveBlock },
+      { icon: 'saveBlock', label: 'Save As Block…', onClick: doSaveBlock, disabled: selIds.length < 2 },
       'sep',
       { icon: 'delete', label: multi ? `Delete ${selIds.length} Objects` : 'Delete', shortcut: 'Delete', onClick: run(() => st().deleteSelection()) },
       'sep',

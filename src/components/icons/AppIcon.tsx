@@ -45,6 +45,13 @@ const ICONS: Record<string, ReactElement> = {
       <path d="M8 16l.8-3L15 6.8a1.6 1.6 0 0 1 2.2 2.2L11 15.2z" fill="#ffffff" />
     </>
   ),
+  rotate: (
+    <>
+      <path d="M12 5a7 7 0 0 1 7 7h1.5l-3.5 4-3.5-4H19a5 5 0 0 0-5-5V5z" fill="#2563eb" stroke="#1d4ed8" strokeWidth="0.5" />
+      <path d="M12 19a7 7 0 0 1-7-7H3.5l3.5-4 3.5 4H5a5 5 0 0 0 5 5v2z" fill="#60a5fa" stroke="#3b82f6" strokeWidth="0.5" />
+      <circle cx="12" cy="12" r="2" fill="#ffffff" stroke="#1d4ed8" strokeWidth="0.5" />
+    </>
+  ),
 
   /* ------------------------------------------------ file operations */
   new: (
@@ -1318,7 +1325,7 @@ const ICONS: Record<string, ReactElement> = {
   ),
 
   /* ------------------------------------------------ Home tab: rotate */
-  rotate: (
+  rotateIcon: (
     <>
       <path d="M20 12a8 8 0 1 1-2.3-5.6" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" fill="none" />
       <path d="M20 3v4h-4" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />

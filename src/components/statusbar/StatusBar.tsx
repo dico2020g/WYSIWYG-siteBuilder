@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/projectStore';
-import { sortBreakpoints } from '../../model/factory';
+import { breakpointLabel, sortBreakpoints } from '../../model/factory';
 
 interface CursorPos {
   x: number;
@@ -41,7 +41,7 @@ export default function StatusBar() {
           <option value="">Desktop</option>
           {sortBreakpoints(breakpoints).map((bp) => (
             <option key={bp.id} value={bp.id}>
-              {bp.maxWidth} px
+              {breakpointLabel(bp)}
             </option>
           ))}
         </select>

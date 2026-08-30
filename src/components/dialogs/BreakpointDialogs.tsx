@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { Breakpoint } from '../../model/types';
 import { useProjectStore } from '../../store/projectStore';
 import { appAlert, appConfirm } from '../../actions/dialogs';
-import { sortBreakpoints } from '../../model/factory';
+import { breakpointDirection, breakpointLabel, sortBreakpoints } from '../../model/factory';
 
 const COMMON_WIDTHS = [320, 480, 600, 768, 800, 1024, 1280];
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
@@ -82,6 +82,7 @@ function ManageBreakpointsDialog() {
         <table className="dlg-bp-table">
           <thead>
             <tr>
+              <th>Media rule</th>
               <th>Device width</th>
               <th>Orientation</th>
               <th>Default Font Size</th>
@@ -90,7 +91,7 @@ function ManageBreakpointsDialog() {
           <tbody>
             {sortedBreakpoints.length === 0 && (
               <tr>
-                <td colSpan={3} className="dlg-bp-empty">
+                <td colSpan={4} className="dlg-bp-empty">
                   No breakpoints defined.
                 </td>
               </tr>
@@ -101,7 +102,8 @@ function ManageBreakpointsDialog() {
                 className={bp.id === selectedId ? 'selected' : ''}
                 onClick={() => setSelectedId(bp.id)}
               >
-                <td>{bp.maxWidth} px</td>
+                <td>{breakpointDirection(bp) === 'min' ? 'Min width' : 'Max width'}</td>
+                <td>{breakpointLabel(bp)}</td>
                 <td>{orientationLabel(bp.orientation)}</td>
                 <td>{bp.fontSize != null ? `${bp.fontSize} px` : 'None'}</td>
               </tr>
@@ -187,6 +189,7 @@ function BreakpointEditorDialog() {
       : null;
 
   const [width, setWidth] = useState<string>(source ? String(source.maxWidth) : '480');
+  const [direction, setDirection] = useState<'max' | 'min'>(source ? breakpointDirection(source) : 'max');
   const [orientation, setOrientation] = useState<'none' | 'portrait' | 'landscape'>(
     source?.orientation ?? 'none'
   );
@@ -217,6 +220,7 @@ function BreakpointEditorDialog() {
     upsertBreakpoint({
       id: editor.mode === 'edit' ? editor.id : undefined,
       maxWidth,
+      direction,
       orientation,
       fontSize: fs,
     });
@@ -225,6 +229,19 @@ function BreakpointEditorDialog() {
 
   return (
     <DialogShell title={title} onClose={closeBreakpointEditor} width={320}>
+      <div className="dlg-field">
+        <label htmlFor="bp-direction">Media rule:</label>
+        <div className="dlg-field-row">
+          <select
+            id="bp-direction"
+            value={direction}
+            onChange={(e) => setDirection(e.target.value as 'max' | 'min')}
+          >
+            <option value="max">Max width — smaller screens (≤)</option>
+            <option value="min">Min width — wider screens (≥)</option>
+          </select>
+        </div>
+      </div>
       <div className="dlg-field">
         <label htmlFor="bp-width">Device width:</label>
         <div className="dlg-field-row">
