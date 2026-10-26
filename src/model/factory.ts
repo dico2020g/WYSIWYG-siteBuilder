@@ -32,6 +32,7 @@ export function createPage(name: string, title?: string): Page {
     id: uid('page'),
     name,
     title: title ?? name,
+    templateId: null,
     width: 970,
     height: 1000,
     backgroundColor: '#ffffff',
@@ -49,6 +50,7 @@ export function createProject(name = 'Untitled1'): Project {
     id: uid('proj'),
     name,
     pages: [createPage('index', 'Untitled Page')],
+    templates: [],
     breakpoints: [
       { id: 'bp_tablet', name: 'Tablet', maxWidth: 768, direction: 'max', orientation: 'none', fontSize: null },
       { id: 'bp_mobile', name: 'Mobile', maxWidth: 480, direction: 'max', orientation: 'none', fontSize: null },

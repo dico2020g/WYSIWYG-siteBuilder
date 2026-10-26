@@ -15,6 +15,8 @@ type GuideOrientation = 'horizontal' | 'vertical';
 type MarqueeRect = { startX: number; startY: number; x: number; y: number; width: number; height: number };
 type DragCenter = { centerX: number; centerY: number } | null;
 
+const GRID_SIZE_OPTIONS = [5, 10, 20, 25, 50, 100];
+
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
@@ -110,11 +112,14 @@ function BreakpointBarIcon({ badge }: { badge: 'plus' | 'gear' }) {
 export default function CanvasArea() {
   const page = useCurrentPage();
   const pages = useProjectStore((s) => s.project.pages);
+  const templates = useProjectStore((s) => s.project.templates ?? []);
   const breakpoints = useProjectStore((s) => s.project.breakpoints);
   const currentPageId = useProjectStore((s) => s.currentPageId);
   const tool = useProjectStore((s) => s.tool);
   const zoom = useProjectStore((s) => s.zoom);
   const activeBreakpointId = useProjectStore((s) => s.activeBreakpointId);
+  const activeTemplateId = useProjectStore((s) => s.activeTemplateId);
+  const closeTemplateEditor = useProjectStore((s) => s.closeTemplateEditor);
   const addComponent = useProjectStore((s) => s.addComponent);
   const selectComponent = useProjectStore((s) => s.selectComponent);
   const selectComponents = useProjectStore((s) => s.selectComponents);
@@ -123,8 +128,14 @@ export default function CanvasArea() {
   const addGuide = useProjectStore((s) => s.addGuide);
   const updateGuide = useProjectStore((s) => s.updateGuide);
   const deleteGuide = useProjectStore((s) => s.deleteGuide);
+  const gridVisible = useProjectStore((s) => s.gridVisible);
+  const gridSize = useProjectStore((s) => s.gridSize);
+  const toggleGrid = useProjectStore((s) => s.toggleGrid);
+  const toggleSnap = useProjectStore((s) => s.toggleSnap);
+  const snapToGrid = useProjectStore((s) => s.snapToGrid);
+  const setGridSize = useProjectStore((s) => s.setGridSize);
   const selectPage = useProjectStore((s) => s.selectPage);
-  const addPage = useProjectStore((s) => s.addPage);
+  const openNewPageDialog = useProjectStore((s) => s.openNewPageDialog);
   const setActiveBreakpoint = useProjectStore((s) => s.setActiveBreakpoint);
   const openBreakpointEditor = useProjectStore((s) => s.openBreakpointEditor);
   const openManageBreakpoints = useProjectStore((s) => s.openManageBreakpoints);
@@ -149,6 +160,10 @@ export default function CanvasArea() {
   const suppressNextClickRef = useRef(false);
 
   const activeBp = sortedBreakpoints.find((b) => b.id === activeBreakpointId) ?? null;
+  const editingTemplate = activeTemplateId ? templates.find((template) => template.id === activeTemplateId) ?? null : null;
+  const pageTemplate = !editingTemplate
+    ? templates.find((template) => template.id === (pages.find((p) => p.id === currentPageId)?.templateId ?? null)) ?? null
+    : null;
   // Default: canvas width = the actual workspace (screen) width. The authored
   // page.width only bounds layout; visually the canvas spans the full display.
   const screenWidth =
@@ -169,6 +184,28 @@ export default function CanvasArea() {
   );
   // Page-bounds marker only meaningful for explicit breakpoint canvases.
   const showPageBounds = false;
+
+  // Grid overlay geometry (artboard coordinates). Line widths are divided by
+  // zoom so lines stay ~1px on screen at any zoom level; major lines every
+  // 10 grid cells, matching the rulers' 100px majors.
+  const gridMajor = gridSize > 0 ? gridSize * 10 : 0;
+  const showGrid = gridVisible && gridSize > 0;
+  const gridMinorVisible = showGrid && gridSize * zoom >= 4;
+  const gridStyle = (): { backgroundImage: string; backgroundSize: string } => {
+    const lw = 1 / Math.max(zoom, 0.01);
+    const major = `rgba(100, 116, 139, 0.28) ${lw * 1.5}px, transparent ${lw * 1.5}px`;
+    const layers = [
+      `linear-gradient(to right, ${major})`,
+      `linear-gradient(to bottom, ${major})`,
+    ];
+    const sizes = [`${gridMajor}px ${gridMajor}px`, `${gridMajor}px ${gridMajor}px`];
+    if (gridMinorVisible) {
+      const minor = `rgba(148, 163, 181, 0.22) ${lw}px, transparent ${lw}px`;
+      layers.push(`linear-gradient(to right, ${minor})`, `linear-gradient(to bottom, ${minor})`);
+      sizes.push(`${gridSize}px ${gridSize}px`, `${gridSize}px ${gridSize}px`);
+    }
+    return { backgroundImage: layers.join(', '), backgroundSize: sizes.join(', ') };
+  };
 
   useEffect(() => {
     const ws = workspaceRef.current;
@@ -399,40 +436,6 @@ export default function CanvasArea() {
     window.addEventListener('pointerup', onUp);
   };
 
-  const startGuideResize = (guide: GuideItem, edge: 'start' | 'end') => (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    suppressNextClickRef.current = true;
-    selectGuide(guide.id);
-    const startClientX = e.clientX;
-    const startClientY = e.clientY;
-    const originalStart = guide.start;
-    const originalLength = guide.length;
-    const maxLength = guide.orientation === 'vertical' ? artboardHeight : artboardWidth;
-    const onMove = (ev: PointerEvent) => {
-      const delta = guide.orientation === 'vertical'
-        ? (ev.clientY - startClientY) / zoom
-        : (ev.clientX - startClientX) / zoom;
-      if (edge === 'start') {
-        const nextStart = clamp(originalStart + delta, 0, originalStart + originalLength - 10);
-        updateGuide(guide.id, {
-          start: Math.round(nextStart),
-          length: Math.round(originalLength + (originalStart - nextStart)),
-        });
-      } else {
-        const nextEnd = clamp(originalStart + originalLength + delta, originalStart + 10, maxLength);
-        updateGuide(guide.id, { length: Math.round(nextEnd - originalStart) });
-      }
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
   return (
     <div className="canvas-root">
       {/* a) page tabs — design pages first, then open database tabs (closable) */}
@@ -440,7 +443,7 @@ export default function CanvasArea() {
         {pages.map((p) => (
           <div
             key={p.id}
-            className={'page-tab' + (p.id === currentPageId && !activeDbPage ? ' active' : '')}
+            className={'page-tab' + (p.id === currentPageId && !activeDbPage && !activeTemplateId ? ' active' : '')}
             onClick={() => selectPage(p.id)}
           >
             {p.name}
@@ -468,7 +471,7 @@ export default function CanvasArea() {
             </div>
           );
         })}
-        <div className="page-tab page-tab-add" onClick={addPage} title="Add page">
+        <div className="page-tab page-tab-add" onClick={openNewPageDialog} title="Add page">
           +
         </div>
       </div>
@@ -477,6 +480,12 @@ export default function CanvasArea() {
         <DatabaseWorkspace />
       ) : (
         <>
+      {editingTemplate && (
+        <div className="template-editing-bar">
+          <span>Editing Template: {editingTemplate.name}</span>
+          <button onClick={closeTemplateEditor}>Back to Page</button>
+        </div>
+      )}
       {/* a2) device-switcher bar */}
       <div className="device-bar">
         <div className="device-bar-group">
@@ -560,12 +569,17 @@ export default function CanvasArea() {
                 openContextMenu({ x: e.clientX, y: e.clientY, componentId: null });
               }}
             >
+              {showGrid && (
+                <div className="canvas-grid" style={gridStyle()} />
+              )}
               {resolvedGuides.map((guide) => {
                 const selected = selectedGuideId === guide.id;
+                // Guides always span the full artboard: from the ruler to the
+                // opposite edge of the canvas — never the screen.
                 const style =
                   guide.orientation === 'vertical'
-                    ? { left: guide.position, top: guide.start, height: guide.length }
-                    : { top: guide.position, left: guide.start, width: guide.length };
+                    ? { left: guide.position, top: 0, height: artboardHeight }
+                    : { top: guide.position, left: 0, width: artboardWidth };
                 return (
                   <div
                     key={guide.id}
@@ -580,32 +594,22 @@ export default function CanvasArea() {
                       e.stopPropagation();
                       selectGuide(guide.id);
                     }}
-                    title="Drag to reposition. Drag handles to resize. Press Delete to remove."
+                    title="Drag to reposition. Press Delete to remove."
                   >
                     {selected && (
-                      <>
-                        <button
-                          className="canvas-guide-handle canvas-guide-handle-start"
-                          onPointerDown={startGuideResize(guide, 'start')}
-                          aria-label="Resize guide start"
-                        />
-                        <button
-                          className="canvas-guide-handle canvas-guide-handle-end"
-                          onPointerDown={startGuideResize(guide, 'end')}
-                          aria-label="Resize guide end"
-                        />
-                        <button
-                          className="canvas-guide-remove"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteGuide(guide.id);
-                          }}
-                          aria-label="Remove guide"
-                        >
-                          x
+                      <button
+                        className="canvas-guide-remove"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteGuide(guide.id);
+                        }}
+                        aria-label="Remove guide"
+                      >
+                          <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+                            <path d="M2.2 2.2 L7.8 7.8 M7.8 2.2 L2.2 7.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+                          </svg>
                         </button>
-                      </>
                     )}
                   </div>
                 );
@@ -631,11 +635,46 @@ export default function CanvasArea() {
                   style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }}
                 />
               )}
+              {pageTemplate?.components.map((component) => (
+                <ComponentView key={`template-${component.id}`} component={component} readOnly />
+              ))}
               {page.components.map((c) => (
                 <ComponentView key={c.id} component={c} />
               ))}
             </div>
           </div>
+        </div>
+
+        {/* floating view tools — grid + snap toggles (Figma-style pill) */}
+        <div className="canvas-float-tools">
+          <button
+            className={'canvas-float-btn' + (gridVisible ? ' on' : '')}
+            title="Toggle grid"
+            onClick={toggleGrid}
+          >
+            <AppIcon name="gridToggle" size={16} />
+          </button>
+          <button
+            className={'canvas-float-btn' + (snapToGrid ? ' on' : '')}
+            title="Snap to grid"
+            onClick={toggleSnap}
+          >
+            <AppIcon name="magnetSnap" size={16} />
+          </button>
+          <select
+            className="canvas-float-size"
+            value={String(gridSize)}
+            onChange={(e) => setGridSize(Number(e.target.value))}
+          >
+            {(GRID_SIZE_OPTIONS.includes(gridSize)
+              ? GRID_SIZE_OPTIONS
+              : [...GRID_SIZE_OPTIONS, gridSize].sort((a, b) => a - b)
+            ).map((g) => (
+              <option key={g} value={String(g)}>
+                {g} px
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

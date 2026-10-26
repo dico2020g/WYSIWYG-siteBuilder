@@ -92,6 +92,11 @@ function jsStr(v: unknown): string {
 
 /* --------------------------------------------------------------- CSS side */
 
+function componentsForPage(project: Project, page: Page): ComponentItem[] {
+  const template = (project.templates ?? []).find((item) => item.id === page.templateId);
+  return template ? [...template.components, ...page.components] : page.components;
+}
+
 /** Serialize a kebab-case CSS record into `key: value;` declarations. */
 function cssDeclarations(css: Record<string, string>): string {
   return Object.entries(css)
@@ -541,7 +546,7 @@ function buildStylesheet(project: Project): string {
   const usedAnimations = new Set<string>();
   const customAnimations = new Map<string, AnimationDefinition>();
   for (const page of project.pages) {
-    for (const cmp of page.components) {
+    for (const cmp of componentsForPage(project, page)) {
       const preset = String(cmp.props?.animationPreset ?? '').trim();
       if (preset) usedAnimations.add(sanitizeIdent(preset));
       for (const def of parseAnimationDefinitions(cmp.props?.animationDefinitions)) {
@@ -571,9 +576,13 @@ function buildStylesheet(project: Project): string {
 
   // Per-component rules (base geometry + style props).
   for (const page of project.pages) {
-    if (page.components.length === 0) continue;
+    const pageComponents = componentsForPage(project, page);
+    if (pageComponents.length === 0) continue;
     lines.push(`/* --- ${page.name} --- */`);
-    for (const cmp of page.components) {
+    const emittedIds = new Set<string>();
+    for (const cmp of pageComponents) {
+      if (emittedIds.has(cmp.id)) continue;
+      emittedIds.add(cmp.id);
       if (cmp.hidden || cmp.props?.protected) continue; // hidden/protected components are excluded entirely
       const elId = elementId(cmp);
       const css = componentCss(cmp, { x: cmp.x, y: cmp.y, width: cmp.width, height: cmp.height }, cmp.props);
@@ -597,7 +606,7 @@ function buildStylesheet(project: Project): string {
   // between the authored width and the widest breakpoint.
   if (hasMaxBp) {
     for (const page of project.pages) {
-      const visible = page.components.filter((cmp) => !cmp.hidden && !cmp.props?.protected);
+      const visible = componentsForPage(project, page).filter((cmp) => !cmp.hidden && !cmp.props?.protected);
       const extent = layoutExtent(visible, responsiveBaseWidth(page), page.height);
       lines.push(`@media (max-width: ${extent.width}px) {`);
       lines.push(
@@ -625,7 +634,8 @@ function buildStylesheet(project: Project): string {
     }
     for (const page of project.pages) {
       const baseWidth = responsiveBaseWidth(page);
-      const resolvedComponents = page.components
+      const pageComponents = componentsForPage(project, page);
+      const resolvedComponents = pageComponents
         .filter((cmp) => !cmp.hidden && !cmp.props?.protected)
         .map((cmp) => resolveComponent(cmp, bps, bp.id, baseWidth));
       const visibleResolved = resolvedComponents.filter(
@@ -641,7 +651,7 @@ function buildStylesheet(project: Project): string {
           `  .${pageClassName(page)} { width: 100%; max-width: none; min-height: 0; height: auto; aspect-ratio: ${extent.width} / ${extent.height}; }`
         );
       }
-      for (const cmp of page.components) {
+      for (const cmp of pageComponents) {
         if (cmp.hidden || cmp.props?.protected) continue; // base-hidden/protected components are excluded entirely
         const elId = elementId(cmp);
         const resolved = resolveComponent(cmp, bps, bp.id, baseWidth);
@@ -911,6 +921,12 @@ function componentHtmlRaw(cmp: ComponentItem, scripts: string[]): string {
     case 'spacer':
       // Pure layout boxes: display model comes from the component's CSS rule.
       return `${openTag(cmp, 'div')}</div>`;
+
+    case 'header':
+      return `${openTag(cmp, 'header')}</header>`;
+
+    case 'footer':
+      return `${openTag(cmp, 'footer')}</footer>`;
 
     case 'card': {
       const img = String(p.imageSrc ?? '').trim()
@@ -1578,7 +1594,7 @@ export function mergedBlockHtml(items: ComponentItem[], effs: ComponentItem[]): 
   return parts.join('');
 }
 
-function buildPageHtml(page: Page): string {
+function buildPageHtml(project: Project, page: Page): string {
   const name = sanitizeIdent(page.name);
   const lines: string[] = [];
   const scripts: string[] = [];
@@ -1596,8 +1612,8 @@ function buildPageHtml(page: Page): string {
   if (page.bodyStartCode) lines.push(page.bodyStartCode); // verbatim by design
   lines.push(`<div class="sb-fit sb-fit-${name}"><div class="sb-page ${pageClassName(page)}" id="page-${name}">`);
 
-  // Array order = stacking order: later components sit on top.
-  for (const cmp of page.components) {
+  // Template content first, then page content so page controls sit above it.
+  for (const cmp of componentsForPage(project, page)) {
     if (cmp.hidden || cmp.props?.protected) continue; // hidden/protected components are excluded entirely
     lines.push(componentHtml(cmp, scripts));
   }
@@ -1630,7 +1646,7 @@ function buildPageHtml(page: Page): string {
 export function exportSite(project: Project): ExportFile[] {
   const files: ExportFile[] = [{ name: 'css/site.css', content: buildStylesheet(project) }];
   for (const page of project.pages) {
-    files.push({ name: `${sanitizeIdent(page.name)}.html`, content: buildPageHtml(page) });
+    files.push({ name: `${sanitizeIdent(page.name)}.html`, content: buildPageHtml(project, page) });
   }
   return files;
 }

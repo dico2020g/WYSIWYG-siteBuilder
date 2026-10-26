@@ -50,6 +50,7 @@ export interface Page {
   id: string;
   name: string;      // file/menu name, e.g. "index"
   title: string;     // <title>
+  templateId?: string | null;
   width: number;     // artboard width at default breakpoint
   height: number;
   backgroundColor: string;
@@ -129,6 +130,7 @@ export interface Project {
   id: string;
   name: string;
   pages: Page[];
+  templates?: Page[];
   breakpoints: Breakpoint[];
   /** 'smaller' → @media (max-width: N), 'larger' → @media (min-width: N) */
   breakpointMode: 'smaller' | 'larger';

@@ -1,4 +1,6 @@
-interface DbConfigPayload {
+// Browser bridge typings — module form so the bridge can import SiteBuilderApi.
+
+export interface DbConfigPayload {
   driver: string;
   host: string;
   port: string;
@@ -7,13 +9,13 @@ interface DbConfigPayload {
   password: string;
 }
 
-interface DbTestResult {
+export interface DbTestResult {
   ok: boolean;
   version?: string;
   error?: string;
 }
 
-interface DbObjectsResult {
+export interface DbObjectsResult {
   ok: boolean;
   tables?: { name: string; engine: string; rows: number; size: number }[];
   views?: string[];
@@ -23,7 +25,7 @@ interface DbObjectsResult {
   error?: string;
 }
 
-interface SiteBuilderApi {
+export interface SiteBuilderApi {
   saveProjectAs(json: string, suggestedName?: string): Promise<string | null>;
   saveProject(filePath: string, json: string): Promise<string>;
   openProject(): Promise<{ filePath: string; json: string } | null>;
@@ -40,6 +42,8 @@ interface SiteBuilderApi {
   appAlert(message: string): Promise<void>;
 }
 
-interface Window {
-  sitebuilder?: SiteBuilderApi;
+declare global {
+  interface Window {
+    sitebuilder?: SiteBuilderApi;
+  }
 }

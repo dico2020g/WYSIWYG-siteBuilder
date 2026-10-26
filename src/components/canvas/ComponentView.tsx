@@ -198,6 +198,8 @@ function dataGridPreview(columns: string[], apiUrl: string, borderColor: string)
 function renderLayout(type: string, props: Record<string, any>): ReactNode {
   switch (type) {
     case 'section':
+    case 'header':
+    case 'footer':
     case 'container':
     case 'group':
       return null; // styled box — props do the talking
@@ -1321,7 +1323,7 @@ function renderInner(type: string, props: Record<string, any>, style: CSSPropert
   if (renderer) return null; // known type whose preview is intentionally empty (section/container/group)
   return <Placeholder label={type} />; // unknown type: don't crash
 }
-export default function ComponentView({ component }: { component: ComponentItem }) {
+export default function ComponentView({ component, readOnly = false }: { component: ComponentItem; readOnly?: boolean }) {
   const selectedId = useProjectStore((s) => s.selectedId);
   const selectedIds = useProjectStore((s) => s.selectedIds);
   const activeBreakpointId = useProjectStore((s) => s.activeBreakpointId);
@@ -1344,7 +1346,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
   const baseWidth = responsiveBaseWidth(page);
   const eff = effectiveComponent(component, breakpoints, activeBreakpointId, baseWidth);
   const props = eff.props;
-  const selected = selectedIds.includes(component.id) || selectedId === component.id;
+  const selected = !readOnly && (selectedIds.includes(component.id) || selectedId === component.id);
   const multiSelected = selected && selectedIds.length > 1;
   const locked = !!component.locked;
   const hiddenNow = resolveComponentHidden(component, breakpoints, activeBreakpointId);
@@ -1379,6 +1381,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
   if (wrapperTransform) delete propStyle.transform;
 
   const startDrag = (e: ReactPointerEvent) => {
+    if (readOnly) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -1468,7 +1471,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    if (locked) return;
+    if (readOnly || locked) return;
     // Keep the pointer captured on the handle so the drag never loses focus.
     const handleEl = e.currentTarget as HTMLElement;
     try { handleEl.setPointerCapture(e.pointerId); } catch { /* noop */ }
@@ -1546,6 +1549,7 @@ export default function ComponentView({ component }: { component: ComponentItem 
     <div
       className={
         'canvas-component' +
+        (readOnly ? ' template-component' : '') +
         (selected ? ' selected' : '') +
         (multiSelected ? ' multi-selected' : '') +
         (hiddenNow ? ' hidden-comp' : '')
@@ -1561,11 +1565,12 @@ export default function ComponentView({ component }: { component: ComponentItem 
         zIndex: props.zIndex !== undefined && props.zIndex !== '' ? Number(props.zIndex) : undefined,
         transform: wrapperTransform,
         transformOrigin: wrapperTransform ? 'center center' : undefined,
+        pointerEvents: readOnly ? 'none' : undefined,
       }}
-      onPointerDown={startDrag}
-      onClick={onClick}
-      onDoubleClick={(e) => void onDoubleClick(e)}
-      onContextMenu={onContextMenu}
+      onPointerDown={readOnly ? undefined : startDrag}
+      onClick={readOnly ? undefined : onClick}
+      onDoubleClick={readOnly ? undefined : (e) => void onDoubleClick(e)}
+      onContextMenu={readOnly ? undefined : onContextMenu}
     >
       <div className="cv-content" style={isFormControl ? undefined : propStyle}>
         {renderInner(component.type, props, propStyle)}

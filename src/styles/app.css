@@ -1,28 +1,35 @@
-/* ============ global ============ */
+/* ============ global (WinForms theme) ============ */
 :root {
-  /* Design tokens — compact desktop-class typography & spacing */
-  --ui-font: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Design tokens — Segoe UI, flat squared controls, classic Windows palette */
+  --ui-font: "Segoe UI", "Segoe UI Variable", Tahoma, Arial, sans-serif;
   --ui-base: 12px;
-  --ui-sm: 11px;
-  --ui-tiny: 10px;
-  --ui-title: 16px;        /* Level 1 — application */
-  --ui-panel-title: 14px;  /* Level 2 — panel */
-  --ui-tab: 11px;          /* Level 3 — tabs */
-  --ui-section: 10px;      /* Level 4 — section heading */
-  --ui-label: 11px;        /* Level 5 — property label */
-  --ui-helper: 10px;       /* Level 6 — helper */
-  --ui-radius: 5px;
+  --ui-sm: 12px;
+  --ui-tiny: 11px;
+  --ui-title: 15px;
+  --ui-panel-title: 12px;
+  --ui-tab: 12px;
+  --ui-section: 11px;
+  --ui-label: 12px;
+  --ui-helper: 11px;
+  --ui-radius: 0px;
   --ui-gap: 4px;
   --ui-gap-lg: 8px;
   --ui-gap-section: 12px;
-  --ui-input-h: 28px;
-  --ui-toolbar-h: 42px;
-  --ui-statusbar-h: 25px;
-  --ui-accent: #1d6ff2;
-  --ui-text: #17212b;
-  --ui-text-2: #475467;
-  --ui-border: #cbd5e1;
-  --ui-border-soft: #e5ebf3;
+  --ui-input-h: 23px;
+  --ui-toolbar-h: 27px;
+  --ui-statusbar-h: 22px;
+  --ui-accent: #0078d4;
+  --ui-selection: #0078d4;
+  --ui-text: #1f1f1f;
+  --ui-text-2: #555555;
+  --ui-border: #d0d0d0;
+  --ui-border-soft: #e6e6e6;
+  --ui-window: #f0f0f0;
+  --ui-control: #ffffff;
+  --ui-hover: #e5f1fb;
+  --ui-hover-border: #719ec8;
+  --ui-pressed: #b6e1ff;
+  --ui-pressed-border: #2b7fc7;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; overflow: hidden; }
@@ -31,7 +38,7 @@ body {
   font-size: var(--ui-base);
   color: var(--ui-text);
   user-select: none;
-  background: #111827;
+  background: var(--ui-window);
 }
 button { font-family: inherit; font-size: var(--ui-sm); }
 input, select, textarea { font-family: inherit; font-size: var(--ui-sm); }
@@ -40,79 +47,30 @@ input, select, textarea { font-family: inherit; font-size: var(--ui-sm); }
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f6f8fb;
+  background: var(--ui-window);
 }
 
-/* dark window title bar (WebDev look) */
-.app-titlebar {
-  display: none;
-  align-items: center; gap: 8px;
-  height: 34px; flex: none;
-  background:
-    linear-gradient(90deg, rgba(22, 119, 255, 0.22), transparent 30%),
-    linear-gradient(180deg, #111827 0%, #080d15 100%);
-  color: #eef5ff;
-  padding: 0 10px 0 14px; font-size: 13px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.app-titlebar-icon {
-  position: relative;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 5px;
-  font-size: 0;
-  background: linear-gradient(135deg, #0496ff 0%, #6842ff 55%, #8e4dff 100%);
-  box-shadow: 0 0 14px rgba(51, 127, 255, 0.42);
-}
-.app-titlebar-icon::before,
-.app-titlebar-icon::after,
-.app-titlebar-icon span {
-  content: '';
-  position: absolute;
-  background: rgba(6, 14, 29, 0.86);
-  border-radius: 999px;
-}
-.app-titlebar-icon::before { width: 7px; height: 11px; left: 4px; bottom: 3px; }
-.app-titlebar-icon::after { width: 7px; height: 11px; right: 4px; bottom: 3px; }
-.app-titlebar-icon span { width: 7px; height: 7px; left: 6px; top: 4px; background: #45d6ff; opacity: 0.72; }
-.app-titlebar-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.app-window-controls {
-  margin-left: auto;
-  display: flex;
-  align-items: stretch;
-  align-self: stretch;
-}
-.app-window-controls span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  color: #e5edf7;
-  font-size: 14px;
-}
-.app-window-controls span:hover { background: rgba(255, 255, 255, 0.1); }
-.app-window-controls span:last-child:hover { background: #e81123; color: #ffffff; }
+/* native Windows title bar (Electron frame) — custom bar hidden */
+.app-titlebar { display: none; }
 
 .app-body { display: flex; flex: 1; min-height: 0; }
 
 .left-column {
   display: flex; flex-direction: column;
-  background: #fbfcfe;
-  border-right: 1px solid #d9e1ec;
-  box-shadow: inset -1px 0 0 #ffffff;
+  background: var(--ui-window);
+  border-right: 1px solid #a8a8a8;
 }
 .center-column {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #dde3eb;
+  background: #d0d0d0;
 }
 .right-column {
   display: flex; flex-direction: column;
-  background: #fbfcfe;
-  border-left: 1px solid #d9e1ec;
-  box-shadow: inset 1px 0 0 #ffffff;
+  background: var(--ui-window);
+  border-left: 1px solid #a8a8a8;
 }
 
 /* drag handle between side panels and the canvas */
@@ -120,16 +78,16 @@ input, select, textarea { font-family: inherit; font-size: var(--ui-sm); }
   width: 4px; min-width: 4px; flex-shrink: 0;
   cursor: col-resize; background: transparent;
 }
-.panel-resizer:hover { background: #0d6efd; }
+.panel-resizer:hover { background: var(--ui-accent); }
 
 /* shared panel chrome */
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-header {
   display: flex; align-items: center; justify-content: space-between;
-  min-height: 40px;
-  padding: 0 10px; font-weight: 600; font-size: var(--ui-panel-title);
-  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
-  border-bottom: 1px solid #dce3ec;
+  min-height: 26px;
+  padding: 0 8px; font-weight: 700; font-size: var(--ui-panel-title);
+  background: var(--ui-window);
+  border-bottom: 1px solid var(--ui-border);
   color: var(--ui-text);
 }
 .panel-body { flex: 1; overflow: auto; min-height: 0; }

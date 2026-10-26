@@ -1,3 +1,9 @@
+/* Modern flat UI: square corners across the app chrome
+   (the user's own designs inside .canvas-root keep their styles). */
+:where(:not(.canvas-root *)) {
+  border-radius: 0 !important;
+}
+
 /* Shared interaction geometry across the desktop UI. */
 :where(button, input, select, textarea) {
   border-radius: var(--ui-radius);

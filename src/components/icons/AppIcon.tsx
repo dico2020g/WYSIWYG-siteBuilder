@@ -24,6 +24,24 @@ const ICONS: Record<string, ReactElement> = {
       <circle cx="12" cy="12" r="2.4" fill="#475569" />
     </>
   ),
+  /* grid toggle — 3x3 grid (vendored from icons/grid-3x3.svg) */
+  gridToggle: (
+    <>
+      <rect width="18" height="18" x="3" y="3" rx="2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M3 15h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M9 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M15 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
+  /* grid snap — magnet (vendored from icons/magnet.svg) */
+  magnetSnap: (
+    <>
+      <path d="m12 15 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m5 8 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
   pointer: (
     <path d="M6 3.5 18.5 12l-5.6 1.2 2.6 5.4-2.5 1.2-2.6-5.3L6 17.5z" fill="#2563eb" stroke="#ffffff" strokeWidth="1.2" strokeLinejoin="round" />
   ),
@@ -352,7 +370,7 @@ const ICONS: Record<string, ReactElement> = {
     <>
       <path d="M6 2.5h7.5L18 7v13.5A1.5 1.5 0 0 1 16.5 22h-10A1.5 1.5 0 0 1 5 20.5v-16A1.5 1.5 0 0 1 6 2.5z" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
       <path d="M13.5 2.5V7H18z" fill="#cbd5e1" />
-      <path d="M8 10.5h6M8 13.5h4" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M8 10.5h5M8 13.5h3" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round" />
       <circle cx="16.5" cy="16.5" r="4.5" fill="#dbeafe" stroke="#2563eb" strokeWidth="1.7" />
       <path d="M16.5 14.7v3.6M14.7 16.5h3.6" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" />
     </>
@@ -725,7 +743,7 @@ const ICONS: Record<string, ReactElement> = {
       <path d="M5.5 5h13a2 2 0 0 1 2 2v2.5h-17V7a2 2 0 0 1 2-2z" fill="#ef4444" />
       <path d="M8 3v3M16 3v3" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" />
       <circle cx="8" cy="13" r="1.2" fill="#94a3b8" />
-      <circle cx="12" cy="13" r="1.2" fill="#2563eb" />
+      <circle cx="12" cy="13" r="1.2" fill="#f59e0b" />
       <circle cx="16" cy="13" r="1.2" fill="#94a3b8" />
       <circle cx="8" cy="16.8" r="1.2" fill="#94a3b8" />
       <circle cx="12" cy="16.8" r="1.2" fill="#94a3b8" />
@@ -1582,7 +1600,7 @@ const TYPE_ICON: Record<string, string> = {
   html: 'html', css: 'css', javascript: 'javascript', iframe: 'iframe',
   // Special
   qrcode: 'qrCode', countdown: 'countdown', calendar: 'calendar',
-  captcha: 'captcha', cookieconsent: 'cookieConsent',
+  captcha: 'captcha', cookieConsent: 'cookieConsent',
   // User (Database)
   login: 'login', register: 'register', logout: 'logout', profile: 'userProfile',
   dbform: 'dbForm', dbtable: 'dbTable', searchresults: 'searchResults',

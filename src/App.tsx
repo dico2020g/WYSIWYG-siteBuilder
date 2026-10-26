@@ -10,6 +10,7 @@ import CodeDialogs from './components/dialogs/CodeDialogs';
 import ConnectionsDialog from './components/dialogs/ConnectionsDialog';
 import AppPrompt from './components/dialogs/AppPrompt';
 import BoxDialog from './components/dialogs/BoxDialog';
+import NewPageDialog from './components/dialogs/NewPageDialog';
 import { useProjectStore, useCurrentPage } from './store/projectStore';
 
 const LEFT_MIN = 160;
@@ -30,6 +31,7 @@ export default function App() {
   const projectName = useProjectStore((s) => s.project.name);
   const dirty = useProjectStore((s) => s.dirty);
   const activeDbPage = useProjectStore((s) => s.activeDbPage);
+  const activeTemplateId = useProjectStore((s) => s.activeTemplateId);
 
   const [leftWidth, setLeftWidth] = useState(() => readStoredWidth('sb.leftWidth', 220, LEFT_MIN));
   const [rightWidth, setRightWidth] = useState(() => readStoredWidth('sb.rightWidth', 300, RIGHT_MIN));
@@ -70,8 +72,9 @@ export default function App() {
           st.openCodeDialog({ kind: 'object-html', componentId: sel });
         } else if (key === 'a') {
           e.preventDefault();
-          const comps =
-            st.project.pages.find((p) => p.id === st.currentPageId)?.components ?? [];
+            const comps = st.activeTemplateId
+              ? (st.project.templates ?? []).find((p) => p.id === st.activeTemplateId)?.components ?? []
+              : st.project.pages.find((p) => p.id === st.currentPageId)?.components ?? [];
           st.selectComponents(comps.map((component) => component.id));
         }
         return;
@@ -120,7 +123,7 @@ export default function App() {
       <div className="app-titlebar">
         <span className="app-titlebar-icon">▣</span>
         <span className="app-titlebar-text">
-          WYSIWYG SiteBuilder - {projectName} - {page.name}{dirty ? '*' : ''}
+          WYSIWYG SiteBuilder - {projectName} - {activeTemplateId ? 'Template: ' : ''}{page.name}{dirty ? '*' : ''}
         </span>
         <div className="app-window-controls" aria-hidden="true">
           <span>−</span>
@@ -152,6 +155,7 @@ export default function App() {
       <ConnectionsDialog />
       <AppPrompt />
       <BoxDialog />
+      <NewPageDialog />
     </div>
   );
 }

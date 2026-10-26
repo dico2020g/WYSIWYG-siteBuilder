@@ -211,7 +211,7 @@ export default function Ribbon() {
   const currentPageId = useProjectStore((s) => s.currentPageId);
   const pages = useProjectStore((s) => s.project.pages);
   const newProject = useProjectStore((s) => s.newProject);
-  const addPage = useProjectStore((s) => s.addPage);
+  const openNewPageDialog = useProjectStore((s) => s.openNewPageDialog);
   const renamePage = useProjectStore((s) => s.renamePage);
   const clonePage = useProjectStore((s) => s.clonePage);
   const deletePage = useProjectStore((s) => s.deletePage);
@@ -487,7 +487,7 @@ export default function Ribbon() {
         {activeTab === 'Project' && (
           <>
             <RibbonGroup caption="Page">
-              <RibbonButton icon="📄" label="New Page" onClick={addPage} />
+              <RibbonButton icon="📄" label="New Page" onClick={openNewPageDialog} />
               <RibbonButton icon="✎" label="Rename" onClick={renameCurrentPage} />
               <RibbonButton icon="⧉" label="Clone" onClick={() => clonePage(currentPageId)} />
               <RibbonButton icon="🗑" label="Delete" onClick={deleteCurrentPage} />
@@ -551,12 +551,12 @@ export default function Ribbon() {
                 active={snapToGrid}
                 onClick={toggleSnap}
               />
-              <label className="ribbon-field" title="Gap between a selected control and its adjustment frame (min 2px)">
+              <label className="ribbon-field" title="Gap between a selected control and its adjustment frame (0 = tight, flush with the bounding box)">
                 <span className="ribbon-field-label">Frame Gap (px)</span>
                 <input
                   type="number"
                   className="ribbon-select"
-                  min={2}
+                  min={0}
                   max={24}
                   value={selectionFrameGap}
                   onChange={(e) => setSelectionFrameGap(Number(e.target.value))}

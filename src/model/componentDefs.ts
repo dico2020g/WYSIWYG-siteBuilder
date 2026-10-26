@@ -347,6 +347,8 @@ function def(type: string, label: string, o: DefOpts): ComponentDef {
 export const COMPONENT_DEFS: ComponentDef[] = [
   /* ---- Layout ---- */
   def('section', 'Section', { icon: '▭', group: 'Layout', w: 940, h: 300, props: { backgroundColor: '#f8f9fa' } }),
+  def('header', 'Header', { icon: '▔', group: 'Layout', w: 940, h: 120, props: { backgroundColor: '#f8f9fa' } }),
+  def('footer', 'Footer', { icon: '▁', group: 'Layout', w: 940, h: 100, props: { backgroundColor: '#f8f9fa' } }),
   def('container', 'Container', { icon: '▢', group: 'Layout', w: 300, h: 200, props: { backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: '#dee2e6' } }),
   def('row', 'Row', { icon: '☰', group: 'Layout', w: 600, h: 120, props: { gap: 10, backgroundColor: '' }, fields: [content('gap', 'Gap (px)', 'number')] }),
   def('column', 'Column', { icon: '▯', group: 'Layout', w: 200, h: 300, props: { gap: 10 }, fields: [content('gap', 'Gap (px)', 'number')] }),
@@ -546,7 +548,7 @@ const GROUP_OF: Record<string, string> = {
   video: 'Media', audio: 'Media', youtube: 'Media', gallery: 'Media',
   slideshow: 'Media', carousel: 'Media', lightbox: 'Media',
   // Layout
-  section: 'Layout', container: 'Layout', row: 'Layout', column: 'Layout',
+  section: 'Layout', header: 'Layout', footer: 'Layout', container: 'Layout', row: 'Layout', column: 'Layout',
   flex: 'Layout', grid: 'Layout', card: 'Layout', panel: 'Layout',
   group: 'Layout', spacer: 'Layout',
   // Mobile

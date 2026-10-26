@@ -635,10 +635,27 @@ function FieldControl({
 function PageProps({ filter }: { filter: string }) {
   const page = useCurrentPage();
   const updatePageProps = useProjectStore((s) => s.updatePageProps);
+  const templates = useProjectStore((s) => s.project.templates ?? []);
+  const activeTemplateId = useProjectStore((s) => s.activeTemplateId);
 
   return (
     <div>
       <GroupSection name="General" filter={filter}>
+        {!activeTemplateId && matches(filter, 'Page Template') && (
+          <Row label="Page Template">
+            <select
+              value={page.templateId ?? ''}
+              onChange={(e) => updatePageProps(page.id, { templateId: e.target.value || null })}
+            >
+              <option value="">None</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+        )}
         {matches(filter, 'Document Type') && (
           <Row label="Document Type">
             <input type="text" value="HTML 5" disabled />

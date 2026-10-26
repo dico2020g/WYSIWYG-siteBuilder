@@ -40,9 +40,11 @@ interface ProjectState {
   selectedIds: string[];
   selectedGuideId: string | null;
   activeBreakpointId: string | null; // null = Default (base)
+  activeTemplateId: string | null; // null = editing a normal page
   zoom: number; // 0.25 .. 2
   snapToGrid: boolean;
   gridSize: number;
+  gridVisible: boolean;
   /** Gap in px between a selected component and its adjustment frame (min 2). */
   selectionFrameGap: number;
   filePath: string | null;
@@ -60,7 +62,7 @@ interface ProjectState {
   loadProject: (project: Project, filePath: string | null) => void;
   markSaved: (filePath: string) => void;
   renameProject: (name: string) => void;
-  addPage: () => void;
+  addPage: (templateId?: string | null) => void;
   renamePage: (pageId: string, name: string) => void;
   deletePage: (pageId: string) => void;
   clonePage: (pageId: string) => void;
@@ -127,8 +129,18 @@ interface ProjectState {
 
   // margin/padding dialog
   boxDialog: null | { kind: 'margin' | 'padding' };
+  newPageDialogOpen: boolean;
+  openNewPageDialog: () => void;
+  closeNewPageDialog: () => void;
   openBoxDialog: (kind: 'margin' | 'padding') => void;
   closeBoxDialog: () => void;
+
+  // template authoring and page association
+  addTemplate: (name: string) => string;
+  openTemplate: (id: string) => void;
+  closeTemplateEditor: () => void;
+  renameTemplate: (id: string, name: string) => void;
+  deleteTemplate: (id: string) => void;
 
   // guide actions
   selectGuide: (id: string | null) => void;
@@ -178,10 +190,16 @@ interface ProjectState {
   // view
   setZoom: (zoom: number) => void;
   toggleSnap: () => void;
+  toggleGrid: () => void;
+  setGridSize: (size: number) => void;
   setSelectionFrameGap: (gap: number) => void;
 }
 
 function currentPage(state: ProjectState): Page {
+  if (state.activeTemplateId) {
+    const template = (state.project.templates ?? []).find((p) => p.id === state.activeTemplateId);
+    if (template) return template;
+  }
   const page = state.project.pages.find((p) => p.id === state.currentPageId);
   return page ?? state.project.pages[0];
 }
@@ -193,6 +211,15 @@ function selectionIds(state: ProjectState): string[] {
 }
 
 function withPage(state: ProjectState, fn: (page: Page) => Page): Partial<ProjectState> {
+  if (state.activeTemplateId) {
+    return {
+      project: {
+        ...state.project,
+        templates: (state.project.templates ?? []).map((p) => (p.id === state.activeTemplateId ? fn(p) : p)),
+      },
+      dirty: true,
+    };
+  }
   return {
     project: {
       ...state.project,
@@ -274,10 +301,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     selectedIds: [],
     selectedGuideId: null,
     activeBreakpointId: null,
+    activeTemplateId: null,
     zoom: 1,
     snapToGrid: true,
     gridSize: 10,
-    selectionFrameGap: 5,
+    gridVisible: true,
+    selectionFrameGap: 10,
     filePath: null,
     dirty: false,
     tool: 'pointer',
@@ -288,6 +317,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     clipboard: null,
     styleClipboard: null,
     boxDialog: null,
+    newPageDialogOpen: false,
     openDbPages: [],
     activeDbPage: null,
     connectionsOpen: false,
@@ -296,13 +326,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     newProject: () => {
       const p = createProject();
-      set({ project: p, currentPageId: p.pages[0].id, selectedId: null, selectedIds: [], selectedGuideId: null, activeBreakpointId: null, filePath: null, dirty: false });
+      set({ project: p, currentPageId: p.pages[0].id, selectedId: null, selectedIds: [], selectedGuideId: null, activeBreakpointId: null, activeTemplateId: null, filePath: null, dirty: false });
     },
     loadProject: (project, filePath) =>
       set({
         // merge db defaults so projects saved before new db fields existed still load
         project: {
           ...project,
+          templates: project.templates ?? [],
           breakpoints: sortBreakpoints((project.breakpoints ?? []).map((bp) => ({ ...bp, direction: bp.direction ?? 'max' }))),
           database: { ...createDatabaseState(), ...project.database },
         },
@@ -311,6 +342,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         selectedIds: [],
         selectedGuideId: null,
         activeBreakpointId: null,
+        activeTemplateId: null,
         filePath,
         dirty: false,
       }),
@@ -318,15 +350,16 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     renameProject: (name) =>
       set((s) => ({ project: { ...s.project, name }, dirty: true })),
 
-    addPage: () =>
+    addPage: (templateId = null) =>
       set((s) => {
         let n = s.project.pages.length + 1;
         let name = `page${n}`;
         while (s.project.pages.some((p) => p.name === name)) name = `page${++n}`;
-        const page = createPage(name);
+        const page = { ...createPage(name), templateId };
         return {
           project: { ...s.project, pages: [...s.project.pages, page] },
           currentPageId: page.id,
+          activeTemplateId: null,
           selectedId: null,
           selectedIds: [],
           selectedGuideId: null,
@@ -364,10 +397,16 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         pages.splice(idx + 1, 0, clone);
         return { project: { ...s.project, pages }, currentPageId: clone.id, selectedId: null, selectedIds: [], selectedGuideId: null, dirty: true };
       }),
-    selectPage: (pageId) => set({ currentPageId: pageId, selectedId: null, selectedIds: [], selectedGuideId: null, activeDbPage: null }),
+    selectPage: (pageId) =>
+      set({ currentPageId: pageId, activeTemplateId: null, selectedId: null, selectedIds: [], selectedGuideId: null, activeDbPage: null }),
     updatePageProps: (pageId, patch) =>
       set((s) => ({
-        project: { ...s.project, pages: s.project.pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)) },
+        project: s.activeTemplateId === pageId
+          ? {
+              ...s.project,
+              templates: (s.project.templates ?? []).map((p) => (p.id === pageId ? { ...p, ...patch } : p)),
+            }
+          : { ...s.project, pages: s.project.pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)) },
         dirty: true,
       })),
 
@@ -376,13 +415,20 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const def = COMPONENT_MAP[type];
       if (!def) return null;
       const s = get();
+      const w = def.defaultSize.width;
+      const h = def.defaultSize.height;
+      // Snap the drop/click point to the grid, then center the control on that
+      // point so its center stays exact (snapping x - w/2 would shift small
+      // controls a few pixels off-center). The frame wraps it with --sel-gap.
+      const sx = snap(x, s.gridSize, s.snapToGrid);
+      const sy = snap(y, s.gridSize, s.snapToGrid);
       const comp: ComponentItem = {
         id: uid('cmp'),
         type,
-        x: snap(x, s.gridSize, s.snapToGrid),
-        y: snap(y, s.gridSize, s.snapToGrid),
-        width: def.defaultSize.width,
-        height: def.defaultSize.height,
+        x: sx - w / 2,
+        y: sy - h / 2,
+        width: w,
+        height: h,
         props: { ...def.defaultProps },
         events: {},
         overrides: {},
@@ -1043,9 +1089,56 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       for (const id of selectionIds(s)) get().updateProps(id, { [kind]: v });
     },
 
+    openNewPageDialog: () => set({ newPageDialogOpen: true }),
+    closeNewPageDialog: () => set({ newPageDialogOpen: false }),
     openBoxDialog: (kind) => set({ boxDialog: { kind } }),
     closeBoxDialog: () => set({ boxDialog: null }),
 
+    addTemplate: (name) => {
+      const clean = name.trim().replace(/\.wdt$/i, '') || 'Template';
+      const template = {
+        ...createPage(clean, clean),
+        name: `${clean}.wdt`,
+        title: clean,
+        templateId: null,
+      };
+      set((s) => ({
+        project: { ...s.project, templates: [...(s.project.templates ?? []), template] },
+        activeTemplateId: template.id,
+        selectedId: null,
+        selectedIds: [],
+        selectedGuideId: null,
+        dirty: true,
+      }));
+      return template.id;
+    },
+    openTemplate: (id) =>
+      set({ activeTemplateId: id, selectedId: null, selectedIds: [], selectedGuideId: null, activeDbPage: null }),
+    closeTemplateEditor: () =>
+      set({ activeTemplateId: null, selectedId: null, selectedIds: [], selectedGuideId: null }),
+    renameTemplate: (id, name) =>
+      set((s) => ({
+        project: {
+          ...s.project,
+          templates: (s.project.templates ?? []).map((template) =>
+            template.id === id ? { ...template, name, title: name.replace(/\.wdt$/i, '') } : template
+          ),
+        },
+        dirty: true,
+      })),
+    deleteTemplate: (id) =>
+      set((s) => ({
+        project: {
+          ...s.project,
+          templates: (s.project.templates ?? []).filter((template) => template.id !== id),
+          pages: s.project.pages.map((page) => (page.templateId === id ? { ...page, templateId: null } : page)),
+        },
+        activeTemplateId: s.activeTemplateId === id ? null : s.activeTemplateId,
+        selectedId: null,
+        selectedIds: [],
+        selectedGuideId: null,
+        dirty: true,
+      })),
 
     selectGuide: (id) => set({ selectedGuideId: id, selectedId: null, selectedIds: [] }),
     addGuide: (guide) => {
@@ -1200,8 +1293,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     setZoom: (zoom) => set({ zoom: Math.min(2, Math.max(0.25, zoom)) }),
     toggleSnap: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+    toggleGrid: () => set((s) => ({ gridVisible: !s.gridVisible })),
+    setGridSize: (size) => set((s) => ({ gridSize: Math.min(200, Math.max(2, Math.round(size) || 10)) })),
     setSelectionFrameGap: (gap) =>
-      set({ selectionFrameGap: Math.min(24, Math.max(2, Math.round(gap) || 5)) }),
+      set({ selectionFrameGap: Math.min(24, Math.max(0, Math.round(gap) || 0)) }),
 
     // ---- database workspace ----
     openDatabase: (page) =>
@@ -1322,7 +1417,13 @@ function withDb(project: Project, database: DatabaseState): Project {
 }
 
 export function useCurrentPage(): Page {
-  return useProjectStore((s) => s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0]);
+  return useProjectStore((s) => {
+    if (s.activeTemplateId) {
+      const template = (s.project.templates ?? []).find((p) => p.id === s.activeTemplateId);
+      if (template) return template;
+    }
+    return s.project.pages.find((p) => p.id === s.currentPageId) ?? s.project.pages[0];
+  });
 }
 
 /** Effective geometry+props of a component under the active breakpoint,

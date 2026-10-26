@@ -1,35 +1,25 @@
 {
   "name": "wysiwyg-sitebuilder",
-  "version": "0.1.0",
-  "description": "WYSIWYG web builder desktop app",
-  "main": "electron/main.cjs",
+  "version": "0.2.0",
+  "description": "WYSIWYG web builder — React/Vite browser app",
+  "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "esbuild test/smoke-model.ts --bundle --platform=node --format=cjs --outfile=test/smoke-model.cjs --external:electron && node test/smoke-model.cjs",
-    "dist": "npm run build && electron-builder",
-    "dist:portable": "npm run build && electron-builder --win portable",
-    "dist:unpacked": "npm run build && electron-builder --win --x64 --config electron-builder.yml --targets win --x64 --publish never",
-    "dist:dir": "npm run build && electron-builder --win --x64 --dir --publish never"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.0",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "wait-on": "^8.0.1"
+    "vite": "^5.4.11"
   },
   "dependencies": {
     "@codemirror/lang-html": "^6.4.9",
     "@codemirror/lang-javascript": "^6.2.2",
     "@uiw/react-codemirror": "^4.23.6",
-    "mssql": "^12.7.0",
-    "mysql2": "^3.23.4",
-    "pg": "^8.23.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sql.js": "^1.14.2",
